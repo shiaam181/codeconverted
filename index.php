@@ -144,6 +144,9 @@ switch (true) {
             case $adminPath === '/products/edit':
                 require __DIR__ . '/admin/product-form.php';
                 break;
+            case $adminPath === '/media':
+                require __DIR__ . '/admin/media.php';
+                break;
             case $adminPath === '/orders':
                 require __DIR__ . '/admin/orders.php';
                 break;
