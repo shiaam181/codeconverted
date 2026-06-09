@@ -426,19 +426,18 @@ function doSearch(q){
 }
 
 function go(v){
-    ['vMap','vForm','vSummary','vPayment'].forEach(id=>{var el=document.getElementById(id);if(el)el.style.display='none'});
-    document.querySelectorAll('.form-view,.summary-view,.payment-view').forEach(el=>el.classList.remove('show'));
+    ['vMap','vForm','vSummary','vPayment'].forEach(id=>{var el=document.getElementById(id);if(el){el.style.display='none';el.classList.remove('show')}});
     document.getElementById('coFooter').classList.remove('show');
 
     if(v==='map'){document.getElementById('vMap').style.display='';step(1);setTimeout(()=>map.invalidateSize(),100)}
-    if(v==='form'){document.getElementById('vForm').classList.add('show');step(1);
-        document.getElementById('fArea').value=area.area;document.getElementById('fCity').value=area.city;
-        document.getElementById('fState').value=area.state;document.getElementById('fPostal').value=area.postal;
-        document.getElementById('roArea').textContent=area.area;
-        document.getElementById('roCityState').textContent=[area.city,area.state,area.postal].filter(Boolean).join(', ');
+    if(v==='form'){var f=document.getElementById('vForm');f.style.display='';f.classList.add('show');step(1);
+        document.getElementById('fArea').value=area.area||'';document.getElementById('fCity').value=area.city||'';
+        document.getElementById('fState').value=area.state||'';document.getElementById('fPostal').value=area.postal||'';
+        document.getElementById('roArea').textContent=area.area||'Selected location';
+        document.getElementById('roCityState').textContent=[area.city,area.state,area.postal].filter(Boolean).join(', ')||'Map location selected';
     }
-    if(v==='summary'){document.getElementById('vSummary').classList.add('show');document.getElementById('coFooter').classList.add('show');step(2)}
-    if(v==='payment'){document.getElementById('vPayment').classList.add('show');step(3)}
+    if(v==='summary'){var s=document.getElementById('vSummary');s.style.display='';s.classList.add('show');document.getElementById('coFooter').classList.add('show');step(2)}
+    if(v==='payment'){var p=document.getElementById('vPayment');p.style.display='';p.classList.add('show');step(3)}
     window.scrollTo(0,0);
 }
 
