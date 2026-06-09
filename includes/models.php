@@ -60,7 +60,7 @@ function get_products(array $options = []): array {
         'is_active' => 'eq.true',
         'select' => '*,product_images(url,sort_order)',
         'order' => $options['order'] ?? 'created_at.desc',
-        'limit' => $options['limit'] ?? 200,
+        'limit' => (string) ($options['limit'] ?? 200),
     ];
     
     // Tenant scoping
@@ -112,7 +112,7 @@ function search_products(string $query, ?string $tenantId = null, int $limit = 4
     $params = [
         'is_active' => 'eq.true',
         'select' => '*,product_images(url,sort_order)',
-        'limit' => $limit,
+        'limit' => (string) $limit,
         'or' => "(title.ilike.%{$query}%,brand.ilike.%{$query}%,description.ilike.%{$query}%)",
     ];
     
@@ -135,7 +135,7 @@ function get_related_products(string $categoryId, string $excludeId, ?string $te
         'category_id' => 'eq.' . $categoryId,
         'id' => 'neq.' . $excludeId,
         'select' => '*,product_images(url,sort_order)',
-        'limit' => $limit,
+        'limit' => (string) $limit,
     ];
     
     if ($tenantId) {

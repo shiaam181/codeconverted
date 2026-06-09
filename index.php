@@ -58,6 +58,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             require __DIR__ . '/pages/place-order.php';
             exit;
             break;
+            
+        case 'mark_paid':
+            $markOrderId = $_POST['order_id'] ?? '';
+            if ($markOrderId) {
+                $ref = strtoupper(substr($markOrderId, 0, 8));
+                supabase_rpc('mark_order_payment_submitted', [
+                    '_order_id' => $markOrderId,
+                    '_payment_reference' => $ref,
+                ]);
+            }
+            $tenant = $_SESSION['current_tenant'] ?? null;
+            $orderLink = $tenant ? "/t/{$tenant['slug']}/order/{$markOrderId}" : "/order/{$markOrderId}";
+            redirect($orderLink);
+            break;
     }
 }
 
