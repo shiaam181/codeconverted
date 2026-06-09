@@ -90,21 +90,38 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     if ($action === 'import_product') {
         $url = trim($_POST['import_url'] ?? '');
-        if ($url) {
-            flash('success', 'Product import from URL is not yet implemented in PHP version. Add product manually.');
+        if (!$url) {
+            flash('error', 'Please provide a Flipkart product URL');
+            redirect('/admin/products');
+        }
+        
+        $categoryId = !empty($_POST['import_category_id']) ? $_POST['import_category_id'] : null;
+        $stock = (int) ($_POST['import_stock'] ?? 10);
+        
+        $result = import_flipkart_product_to_db($url, $categoryId, $stock);
+        
+        if ($result) {
+            $imgCount = $result['images_count'] ?? 0;
+            flash('success', "Imported: \"{$result['title']}\" with {$imgCount} images — ₹" . number_format($result['price'], 0, '.', ','));
         } else {
-            flash('error', 'Please provide a product URL');
+            flash('error', 'Failed to import product. Check the URL is a valid Flipkart product page and try again.');
         }
         redirect('/admin/products');
     }
 
     if ($action === 'import_category') {
         $url = trim($_POST['import_cat_url'] ?? '');
-        if ($url) {
-            flash('success', 'Category import from URL is not yet implemented in PHP version. Add products manually.');
-        } else {
-            flash('error', 'Please provide a category URL');
+        if (!$url) {
+            flash('error', 'Please provide a Flipkart category/search URL');
+            redirect('/admin/products');
         }
+        
+        $categoryId = !empty($_POST['import_cat_category_id']) ? $_POST['import_cat_category_id'] : null;
+        $stock = (int) ($_POST['import_cat_stock'] ?? 10);
+        
+        $result = import_flipkart_category_to_db($url, $categoryId, $stock);
+        
+        flash('success', "Category import done: {$result['imported']} imported, {$result['failed']} failed, {$result['total']} total links found.");
         redirect('/admin/products');
     }
 
@@ -276,19 +293,32 @@ Sample Product,999,1299,10,Brand,electronics,https://example.com/image.jpg</text
 <div class="modal-overlay" id="importModal" style="display:none">
     <div class="modal-content">
         <div class="modal-header">
-            <h3>Import product</h3>
+            <h3>Import product from Flipkart</h3>
             <button type="button" onclick="this.closest('.modal-overlay').style.display='none'" class="modal-close">✕</button>
         </div>
         <form method="POST" action="/admin/products">
             <input type="hidden" name="product_action" value="import_product">
             <div class="form-group">
-                <label>Product URL (Flipkart/Amazon link)</label>
-                <input type="url" name="import_url" class="form-input" placeholder="https://www.flipkart.com/...">
-                <p class="form-hint">Paste a Flipkart product link to import title, images, price, and description.</p>
+                <label>Flipkart Product URL *</label>
+                <input type="url" name="import_url" class="form-input" placeholder="https://www.flipkart.com/product-name/p/itXXXXXX" required>
+                <p class="form-hint">Paste a Flipkart product link. Will extract title, price, MRP, brand, description, and ALL images.</p>
+            </div>
+            <div class="form-group">
+                <label>Category (optional)</label>
+                <select name="import_category_id" class="form-select">
+                    <option value="">— Auto / None —</option>
+                    <?php foreach ($categories as $cat): ?>
+                    <option value="<?= e($cat['id']) ?>"><?= e($cat['name']) ?></option>
+                    <?php endforeach; ?>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>Stock</label>
+                <input type="number" name="import_stock" class="form-input" value="10">
             </div>
             <div class="modal-footer">
                 <button type="button" onclick="this.closest('.modal-overlay').style.display='none'" class="btn-outline">Cancel</button>
-                <button type="submit" class="btn-primary">Import</button>
+                <button type="submit" class="btn-primary">🔗 Import Product</button>
             </div>
         </form>
     </div>
@@ -298,19 +328,32 @@ Sample Product,999,1299,10,Brand,electronics,https://example.com/image.jpg</text
 <div class="modal-overlay" id="importCatModal" style="display:none">
     <div class="modal-content">
         <div class="modal-header">
-            <h3>Import category</h3>
+            <h3>Import from Flipkart category/search</h3>
             <button type="button" onclick="this.closest('.modal-overlay').style.display='none'" class="modal-close">✕</button>
         </div>
         <form method="POST" action="/admin/products">
             <input type="hidden" name="product_action" value="import_category">
             <div class="form-group">
-                <label>Category URL (Flipkart category link)</label>
-                <input type="url" name="import_cat_url" class="form-input" placeholder="https://www.flipkart.com/...">
-                <p class="form-hint">Paste a Flipkart category link to import multiple products at once.</p>
+                <label>Flipkart Category / Search URL *</label>
+                <input type="url" name="import_cat_url" class="form-input" placeholder="https://www.flipkart.com/mobiles/..." required>
+                <p class="form-hint">Paste a Flipkart category or search results page. Will find all product links and import each one (up to 30 products).</p>
+            </div>
+            <div class="form-group">
+                <label>Assign to Category (optional)</label>
+                <select name="import_cat_category_id" class="form-select">
+                    <option value="">— None —</option>
+                    <?php foreach ($categories as $cat): ?>
+                    <option value="<?= e($cat['id']) ?>"><?= e($cat['name']) ?></option>
+                    <?php endforeach; ?>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>Default Stock</label>
+                <input type="number" name="import_cat_stock" class="form-input" value="10">
             </div>
             <div class="modal-footer">
                 <button type="button" onclick="this.closest('.modal-overlay').style.display='none'" class="btn-outline">Cancel</button>
-                <button type="submit" class="btn-primary">Import</button>
+                <button type="submit" class="btn-primary">🔗 Import All Products</button>
             </div>
         </form>
     </div>
