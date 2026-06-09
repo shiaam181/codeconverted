@@ -14,6 +14,7 @@ require_once __DIR__ . '/includes/helpers.php';
 require_once __DIR__ . '/includes/cart.php';
 require_once __DIR__ . '/includes/models.php';
 require_once __DIR__ . '/includes/admin-helpers.php';
+require_once __DIR__ . '/includes/flipkart-scraper.php';
 
 // Handle cart actions (POST requests)
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
