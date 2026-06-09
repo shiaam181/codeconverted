@@ -1,217 +1,272 @@
 <?php
 /**
  * Flipkart Product Scraper
- * Scrapes product data from Flipkart URLs including all images.
+ * PHP port of the React/TypeScript flipkart-import.functions.ts
+ * Scrapes product data from Flipkart URLs including all images and variants.
  */
 
-/**
- * Import a single product from a Flipkart URL.
- * Returns: ['title', 'price', 'mrp', 'brand', 'description', 'images' => [...urls], 'rating', 'rating_count']
- */
-function scrape_flipkart_product(string $url): ?array {
-    $html = fetch_page_html($url);
-    if (!$html) return null;
+// ─── Image Filtering ──────────────────────────────────────────────────────────
 
+$IMAGE_REJECT_KEYWORDS = [
+    'placeholder', 'loading', 'spinner', 'logo', 'icon', 'sprite',
+    'banner', 'advertisement', '/ads/', 'rating', 'fk-cp-zion', 'promos/', 'fa_62673a.png',
+];
+
+function is_likely_product_image(string $url): bool {
+    global $IMAGE_REJECT_KEYWORDS;
+    $lower = strtolower($url);
+    if (preg_match('/^data:|^blob:/i', $lower)) return false;
+    // Accept Flipkart CDN hosts (rukmini, rukminim1, rukminim2, etc.)
+    if (!preg_match('/^https?:\/\/rukmini[a-z0-9]*\.flixcart\.com\//i', $lower)) return false;
+    if (preg_match('/\.(svg|gif)(\?|$)/i', $lower)) return false;
+    if (!preg_match('/\.(jpe?g|png|webp)(\?|$)/i', $lower)) return false;
+    foreach ($IMAGE_REJECT_KEYWORDS as $kw) {
+        if (strpos($lower, $kw) !== false) return false;
+    }
+    return true;
+}
+
+function optimize_image_url(string $url): string {
+    $u = html_entity_decode($url);
+    $u = str_replace(['\\/', '\\u002F'], '/', $u);
+    $u = urldecode($u);
+    // Replace any size segment with high-res 832x832
+    $u = preg_replace('/\/(?:\{@width\}|\d{2,4})\/(?:\{@height\}|\d{2,4})\//', '/832/832/', $u);
+    // Clean query params
+    $u = preg_replace('/[?&]q=(?:\{@quality\}|\d+)/i', '', $u);
+    $u = preg_replace('/[?&]_=\d+/', '', $u);
+    // Add quality param
+    $sep = strpos($u, '?') !== false ? '&' : '?';
+    if (!preg_match('/[?&]q=/', $u)) $u .= $sep . 'q=90';
+    return $u;
+}
+
+function image_identity(string $url): string {
+    $noQuery = explode('?', $url)[0];
+    $noSize = preg_replace('/\/(?:\{@width\}|\d{2,4})\/(?:\{@height\}|\d{2,4})\//', '/', $noQuery);
+    if (preg_match('/\/([a-z0-9_-]{6,})\.(?:jpe?g|png|webp)$/i', $noSize, $m)) {
+        return strtolower($m[1]);
+    }
+    return strtolower($noSize);
+}
+
+// ─── Text Cleaning ────────────────────────────────────────────────────────────
+
+function decode_entities(string $s): string {
+    return html_entity_decode($s, ENT_QUOTES | ENT_HTML5, 'UTF-8');
+}
+
+function clean_title(string $name): string {
+    $n = decode_entities($name);
+    $n = preg_replace('/^Flipkart\.com\s*\|\s*/i', '', $n);
+    $n = preg_replace('/^Flipkart\s*-?\s*/i', '', $n);
+    $n = preg_replace('/\s*-\s*Buy\s+.*$/i', '', $n);
+    $n = preg_replace('/\s*\|\s*Flipkart\.com\s*$/i', '', $n);
+    $n = preg_replace('/^\s*Add to Compare\s*[:\-–]?\s*/i', '', $n);
+    $n = preg_replace('/\s*Add to Compare\s*/i', ' ', $n);
+    $n = preg_replace('/^\s*(?:Sponsored|Assured|New Arrival|Bestseller|Trending)\s*[:\-–]?\s*/i', '', $n);
+    return trim(preg_replace('/\s+/', ' ', $n));
+}
+
+function clean_description(string $desc): string {
+    $d = decode_entities($desc);
+    $d = preg_replace('/^Flipkart\.com\s*:\s*/i', '', $d);
+    $d = preg_replace('/Buy\s+[^.]*only\s+for\s+Rs\.\s+from\s+Flipkart\.com\.\s*/i', '', $d);
+    $d = preg_replace('/Only\s+Genuine\s+Products\.\s*/i', '', $d);
+    $d = preg_replace('/\d+\s+Day\s+Replacement\s+Guarantee\.\s*/i', '', $d);
+    $d = preg_replace('/Free\s+Shipping\.\s*/i', '', $d);
+    $d = preg_replace('/Cash\s+On\s+Delivery\s*!?\s*/i', '', $d);
+    $d = trim(preg_replace('/\s+/', ' ', $d));
+    if (strlen($d) > 500) $d = substr($d, 0, 497) . '...';
+    return $d;
+}
+
+// ─── Image Extraction ─────────────────────────────────────────────────────────
+
+function extract_image_urls(string $text): array {
+    $normalized = decode_entities($text);
+    $normalized = str_replace(['\\/', '\\u002F'], '/', $normalized);
+    
+    $images = [];
+    $seen = [];
+    
+    // Match all Flipkart CDN image URLs
+    if (preg_match_all('/https?:\/\/rukmini[a-z0-9]*\.flixcart\.com\/[^"\'<>\s,)\\\\]+?\.(?:jpe?g|png|webp)(?:\?[^"\'<>\s,)\\\\]*)?/i', $normalized, $matches)) {
+        foreach ($matches[0] as $url) {
+            $optimized = optimize_image_url($url);
+            if (!is_likely_product_image($optimized)) continue;
+            $id = image_identity($optimized);
+            if (isset($seen[$id])) continue;
+            $seen[$id] = true;
+            $images[] = $optimized;
+        }
+    }
+    
+    return $images;
+}
+
+function extract_gallery_images(string $html): array {
+    $normalized = decode_entities($html);
+    $normalized = str_replace(['\\/', '\\u002F'], '/', $normalized);
+    
+    $images = [];
+    $seen = [];
+    
+    $addImage = function(string $url) use (&$images, &$seen) {
+        $optimized = optimize_image_url($url);
+        if (!is_likely_product_image($optimized)) return;
+        $id = image_identity($optimized);
+        if (isset($seen[$id])) return;
+        $seen[$id] = true;
+        $images[] = $optimized;
+    };
+    
+    // 1. Scan multimedia/gallery widget blocks
+    $widgetMarkers = [
+        'default_fk_pp_multimedia_inline_slider',
+        'ATLAS_MULTIMEDIA_INLINE_SLIDER',
+        'multiMediaViewData_0',
+        '"type":"MULTI_MEDIA"',
+        '"widgetType":"MULTIMEDIA"',
+    ];
+    foreach ($widgetMarkers as $marker) {
+        $pos = strpos($normalized, $marker);
+        while ($pos !== false) {
+            $section = substr($normalized, $pos, 200000);
+            foreach (extract_image_urls($section) as $url) $addImage($url);
+            $pos = strpos($normalized, $marker, $pos + strlen($marker));
+        }
+    }
+    
+    // 2. Extract from JSON image keys (ProductPageContext)
+    $productPageStart = strpos($normalized, '"type":"ProductPageContext"');
+    $productPageHtml = $productPageStart !== false ? substr($normalized, $productPageStart) : $normalized;
+    
+    $imageKeys = ['imageUrl', 'dynamicImageUrl', 'actualImageUrl', 'highResImage', 'url', 'src'];
+    foreach ($imageKeys as $key) {
+        if (preg_match_all('/"' . $key . '"\s*:\s*"(https?:\/\/rukmini(?:m)?\d?\.flixcart\.com\/image\/[^"\\\\]+)"/i', $productPageHtml, $m)) {
+            foreach ($m[1] as $url) $addImage($url);
+        }
+    }
+    
+    // 3. Fallback: regex over first 500K of product page slice
+    if (count($images) < 2) {
+        $slice = substr($productPageHtml, 0, 500000);
+        foreach (extract_image_urls($slice) as $url) $addImage($url);
+    }
+    
+    return array_slice($images, 0, 16);
+}
+
+// ─── HTML Parser ──────────────────────────────────────────────────────────────
+
+function parse_flipkart_html(string $html): array {
     $result = [
-        'title' => null,
+        'title' => '',
         'price' => 0,
         'mrp' => null,
+        'description' => '',
         'brand' => null,
-        'description' => null,
         'images' => [],
         'rating' => null,
         'rating_count' => 0,
     ];
-
-    // Suppress HTML warnings
-    libxml_use_internal_errors(true);
-    $doc = new DOMDocument();
-    $doc->loadHTML('<?xml encoding="utf-8" ?>' . $html);
-    libxml_clear_errors();
-
-    $xpath = new DOMXPath($doc);
-
+    
     // === TITLE ===
-    // Flipkart uses <span class="VU-ZEz"> or <h1 class="..."> for product title
-    $titleNodes = $xpath->query('//span[contains(@class,"VU-ZEz")] | //h1[contains(@class,"yhB1nd")] | //span[contains(@class,"B_NuCI")]');
-    if ($titleNodes->length > 0) {
-        $result['title'] = trim($titleNodes->item(0)->textContent);
+    if (preg_match('/<h1[^>]*>([\s\S]*?)<\/h1>/i', $html, $m)) {
+        $result['title'] = strip_tags($m[1]);
     }
-    // Fallback: og:title meta
-    if (!$result['title']) {
-        $ogTitle = $xpath->query('//meta[@property="og:title"]/@content');
-        if ($ogTitle->length > 0) {
-            $result['title'] = trim($ogTitle->item(0)->nodeValue);
+    if (!$result['title'] && preg_match('/<meta[^>]+property=["\']og:title["\'][^>]+content=["\']([^"\']+)["\']/i', $html, $m)) {
+        $result['title'] = $m[1];
+    }
+    if (!$result['title'] && preg_match('/<title>([^<]+)<\/title>/i', $html, $m)) {
+        $result['title'] = $m[1];
+    }
+    $result['title'] = clean_title($result['title']);
+    
+    // === PRICE ===
+    // Pattern: ₹X then ₹Y (first is selling price, second is MRP, or vice versa)
+    if (preg_match('/₹\s*([0-9,]+)[\s\S]{0,400}?₹\s*([0-9,]+)/', $html, $m)) {
+        $a = (int) str_replace(',', '', $m[1]);
+        $b = (int) str_replace(',', '', $m[2]);
+        $result['price'] = min($a, $b);
+        $max = max($a, $b);
+        $result['mrp'] = ($max > $result['price']) ? $max : null;
+    } else {
+        if (preg_match('/₹\s*([0-9,]+)/', $html, $m)) {
+            $result['price'] = (int) str_replace(',', '', $m[1]);
+        }
+        if (!$result['price'] && preg_match('/"price"\s*:\s*"?([0-9,]+)"?/i', $html, $m)) {
+            $result['price'] = (int) str_replace(',', '', $m[1]);
         }
     }
-
-    // === BRAND ===
-    $brandNodes = $xpath->query('//span[contains(@class,"mEh187")] | //span[contains(@class,"G6XhRU")]');
-    if ($brandNodes->length > 0) {
-        $result['brand'] = trim($brandNodes->item(0)->textContent);
-    }
-
-    // === PRICE (selling price) ===
-    $priceNodes = $xpath->query('//div[contains(@class,"Nx9bqj") and contains(@class,"CxhGGd")] | //div[contains(@class,"_30jeq3") and contains(@class,"_16Jk6d")]');
-    if ($priceNodes->length > 0) {
-        $priceText = trim($priceNodes->item(0)->textContent);
-        $result['price'] = (float) preg_replace('/[^0-9.]/', '', $priceText);
-    }
-    // Fallback: look for any element with ₹ followed by numbers
-    if ($result['price'] <= 0) {
-        if (preg_match('/₹\s*([\d,]+)/', $html, $m)) {
-            $result['price'] = (float) str_replace(',', '', $m[1]);
+    
+    // === IMAGES (gallery extraction - same as React version) ===
+    $result['images'] = extract_gallery_images($html);
+    
+    // Fallback: og:image
+    if (empty($result['images'])) {
+        if (preg_match('/<meta[^>]+property=["\']og:image["\'][^>]+content=["\']([^"\']+rukmini(?:m)?[^"\']+)["\']/i', $html, $m)) {
+            $optimized = optimize_image_url($m[1]);
+            if (is_likely_product_image($optimized)) {
+                $result['images'][] = $optimized;
+            }
         }
     }
-
-    // === MRP (original price / strikethrough) ===
-    $mrpNodes = $xpath->query('//div[contains(@class,"yRaY8j")] | //div[contains(@class,"_3I9_wc")] | //span[contains(@class,"yRaY8j")]');
-    if ($mrpNodes->length > 0) {
-        $mrpText = trim($mrpNodes->item(0)->textContent);
-        $mrpVal = (float) preg_replace('/[^0-9.]/', '', $mrpText);
-        if ($mrpVal > $result['price']) {
-            $result['mrp'] = $mrpVal;
-        }
-    }
-
+    
     // === DESCRIPTION ===
-    // Flipkart has product description in various divs
-    $descNodes = $xpath->query('//div[contains(@class,"_1mXcCf")] | //div[contains(@class,"yN+eNk")] | //div[contains(@class,"_1AN87F")]//p');
-    $descParts = [];
-    foreach ($descNodes as $node) {
-        $text = trim($node->textContent);
-        if ($text && strlen($text) > 20) {
-            $descParts[] = $text;
-        }
+    if (preg_match('/<meta[^>]+name=["\']description["\'][^>]+content=["\']([^"\']+)["\']/i', $html, $m)) {
+        $result['description'] = $m[1];
     }
-    if (!empty($descParts)) {
-        $result['description'] = implode("\n\n", array_slice($descParts, 0, 3));
+    if (!$result['description'] && preg_match('/<meta[^>]+property=["\']og:description["\'][^>]+content=["\']([^"\']+)["\']/i', $html, $m)) {
+        $result['description'] = $m[1];
     }
-    // Fallback: og:description
-    if (!$result['description']) {
-        $ogDesc = $xpath->query('//meta[@property="og:description"]/@content');
-        if ($ogDesc->length > 0) {
-            $result['description'] = trim($ogDesc->item(0)->nodeValue);
-        }
-    }
-
-    // === IMAGES (all product images) ===
-    // Flipkart stores images in <img> with src containing rukminim2.flixcart.com
-    // They also have data in JSON-LD and img tags
-    $images = [];
+    $result['description'] = clean_description($result['description']);
     
-    // Method 1: Look for high-res images in the page (rukminim2 or rukminim1)
-    if (preg_match_all('/https?:\/\/rukminim[12]\.flixcart\.com\/image\/[^"\'>\s]+/i', $html, $matches)) {
-        foreach ($matches[0] as $imgUrl) {
-            // Convert thumbnail URLs to high-res (832/832 or 416/416)
-            $hiRes = preg_replace('/\/\d+\/\d+\//', '/832/832/', $imgUrl);
-            if (!in_array($hiRes, $images)) {
-                $images[] = $hiRes;
-            }
-        }
+    // === BRAND ===
+    if (preg_match('/"brand"\s*:\s*\{?\s*"name"\s*:\s*"([^"]+)"/i', $html, $m)) {
+        $result['brand'] = $m[1];
     }
     
-    // Method 2: Look for og:image
-    $ogImages = $xpath->query('//meta[@property="og:image"]/@content');
-    foreach ($ogImages as $ogImg) {
-        $imgUrl = trim($ogImg->nodeValue);
-        if ($imgUrl && !in_array($imgUrl, $images)) {
-            array_unshift($images, $imgUrl); // Put og:image first
-        }
+    // === RATING (from JSON-LD) ===
+    if (preg_match('/"ratingValue"\s*:\s*"?([0-9.]+)"?/i', $html, $m)) {
+        $result['rating'] = (float) $m[1];
     }
-
-    // Method 3: JSON-LD structured data
-    $scriptNodes = $xpath->query('//script[@type="application/ld+json"]');
-    foreach ($scriptNodes as $script) {
-        $json = json_decode(trim($script->textContent), true);
-        if ($json) {
-            // Single product
-            if (!empty($json['image'])) {
-                $imgs = is_array($json['image']) ? $json['image'] : [$json['image']];
-                foreach ($imgs as $img) {
-                    if (is_string($img) && !in_array($img, $images)) {
-                        $images[] = $img;
-                    }
-                }
-            }
-            // Get brand/name from JSON-LD
-            if (!$result['title'] && !empty($json['name'])) {
-                $result['title'] = $json['name'];
-            }
-            if (!$result['brand'] && !empty($json['brand']['name'])) {
-                $result['brand'] = $json['brand']['name'];
-            }
-            // Rating from JSON-LD
-            if (!empty($json['aggregateRating'])) {
-                $result['rating'] = (float) ($json['aggregateRating']['ratingValue'] ?? 0);
-                $result['rating_count'] = (int) ($json['aggregateRating']['ratingCount'] ?? 0);
-            }
-        }
+    if (preg_match('/"ratingCount"\s*:\s*"?([0-9,]+)"?/i', $html, $m)) {
+        $result['rating_count'] = (int) str_replace(',', '', $m[1]);
     }
-
-    // Deduplicate and limit images
-    $result['images'] = array_values(array_unique(array_slice($images, 0, 15)));
-
-    // === RATING (from HTML if not from JSON-LD) ===
-    if (!$result['rating']) {
-        $ratingNodes = $xpath->query('//div[contains(@class,"XQDdHH")] | //span[contains(@class,"_1lRcqv")]');
-        if ($ratingNodes->length > 0) {
-            $ratingText = trim($ratingNodes->item(0)->textContent);
-            if (is_numeric($ratingText)) {
-                $result['rating'] = (float) $ratingText;
-            }
-        }
+    // Fallback rating count from text
+    if (!$result['rating_count'] && preg_match('/([\d,]+)\s*Ratings/i', $html, $m)) {
+        $result['rating_count'] = (int) str_replace(',', '', $m[1]);
     }
-    if (!$result['rating_count']) {
-        // Look for "X Ratings" text
-        if (preg_match('/([\d,]+)\s*Ratings/i', $html, $m)) {
-            $result['rating_count'] = (int) str_replace(',', '', $m[1]);
-        }
-    }
-
-    // Validate we got something useful
-    if (!$result['title'] && !$result['price']) {
-        return null;
-    }
-
+    
     return $result;
 }
 
-/**
- * Import multiple products from a Flipkart category/search URL.
- * Returns array of product links found on the page.
- */
-function scrape_flipkart_category(string $url): array {
-    $html = fetch_page_html($url);
-    if (!$html) return [];
+// ─── Category/Listing Parser ──────────────────────────────────────────────────
 
-    $productLinks = [];
-
-    // Flipkart product links pattern: /product-name/p/itXXXXXX
-    if (preg_match_all('#href="(/[^"]*?/p/it[^"]+)"#i', $html, $matches)) {
+function parse_listing_product_links(string $html, int $limit = 30): array {
+    $normalized = decode_entities($html);
+    $normalized = str_replace(['\\/', '\\u002F'], '/', $normalized);
+    $links = [];
+    
+    // Find product links: /product-name/p/itXXXXXX
+    if (preg_match_all('/href=["\']([^"\']*\/p\/itm[^"\']*)["\']/', $normalized, $matches)) {
         foreach ($matches[1] as $path) {
-            $fullUrl = 'https://www.flipkart.com' . $path;
-            if (!in_array($fullUrl, $productLinks)) {
-                $productLinks[] = $fullUrl;
+            $url = (strpos($path, 'http') === 0) ? $path : 'https://www.flipkart.com' . $path;
+            // Skip sponsored
+            if (!in_array($url, $links)) {
+                $links[] = $url;
             }
+            if (count($links) >= $limit) break;
         }
     }
-
-    // Also look for dl.flipkart.com links
-    if (preg_match_all('#https?://dl\.flipkart\.com/[^"\'>\s]+#i', $html, $matches)) {
-        foreach ($matches[0] as $link) {
-            if (!in_array($link, $productLinks)) {
-                $productLinks[] = $link;
-            }
-        }
-    }
-
-    return array_slice($productLinks, 0, 30); // Limit to 30 products
+    
+    return $links;
 }
 
-/**
- * Fetch page HTML with cURL (handles Flipkart redirects and mobile user-agent)
- */
+// ─── HTTP Fetch ───────────────────────────────────────────────────────────────
+
 function fetch_page_html(string $url): ?string {
     $ch = curl_init();
     curl_setopt_array($ch, [
@@ -219,16 +274,17 @@ function fetch_page_html(string $url): ?string {
         CURLOPT_RETURNTRANSFER => true,
         CURLOPT_FOLLOWLOCATION => true,
         CURLOPT_MAXREDIRS => 5,
-        CURLOPT_TIMEOUT => 20,
+        CURLOPT_TIMEOUT => 25,
         CURLOPT_CONNECTTIMEOUT => 10,
-        CURLOPT_USERAGENT => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        CURLOPT_USERAGENT => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
         CURLOPT_HTTPHEADER => [
-            'Accept: text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+            'Accept: text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
             'Accept-Language: en-IN,en;q=0.9',
             'Cache-Control: no-cache',
+            'Referer: https://www.flipkart.com/',
         ],
         CURLOPT_SSL_VERIFYPEER => true,
-        CURLOPT_ENCODING => '', // Accept all encodings (gzip, deflate)
+        CURLOPT_ENCODING => '', // gzip/deflate
     ]);
 
     $html = curl_exec($ch);
@@ -236,37 +292,64 @@ function fetch_page_html(string $url): ?string {
     $error = curl_error($ch);
     curl_close($ch);
 
-    if ($error || $httpCode >= 400 || !$html) {
+    if ($error || $httpCode >= 400 || !$html || strlen($html) < 2000) {
+        return null;
+    }
+
+    // Check if blocked
+    $lower = strtolower(substr($html, 0, 4000));
+    if (strpos($lower, 'access denied') !== false || strpos($lower, 'captcha') !== false) {
         return null;
     }
 
     return $html;
 }
 
+// ─── Full Import Functions ────────────────────────────────────────────────────
+
 /**
- * Full import: scrape product + create in database + save all images
- * Returns the created product data or null on failure.
+ * Scrape a single Flipkart product URL.
+ * Returns parsed data: title, price, mrp, brand, description, images[], rating, rating_count
+ */
+function scrape_flipkart_product(string $url): ?array {
+    $html = fetch_page_html($url);
+    if (!$html) return null;
+    
+    $parsed = parse_flipkart_html($html);
+    
+    if (!$parsed['title'] && !$parsed['price']) return null;
+    
+    return $parsed;
+}
+
+/**
+ * Get product links from a Flipkart category/search page.
+ */
+function scrape_flipkart_category(string $url): array {
+    $html = fetch_page_html($url);
+    if (!$html) return [];
+    return parse_listing_product_links($html, 30);
+}
+
+/**
+ * Full import: scrape product + create in database + save ALL images
  */
 function import_flipkart_product_to_db(string $url, ?string $categoryId = null, int $stock = 10, bool $isActive = true, bool $isFeatured = false): ?array {
     $scraped = scrape_flipkart_product($url);
-    if (!$scraped || !$scraped['title']) {
-        return null;
-    }
+    if (!$scraped || !$scraped['title']) return null;
 
-    // Calculate discount
     $discount = 0;
     if ($scraped['mrp'] && $scraped['mrp'] > $scraped['price']) {
         $discount = (int) round((($scraped['mrp'] - $scraped['price']) / $scraped['mrp']) * 100);
     }
 
-    // Create product
     $slug = slugify($scraped['title']);
     $slug = substr($slug, 0, 70) . '-' . substr(md5(uniqid()), 0, 5);
 
     $productPayload = [
         'title' => $scraped['title'],
         'slug' => $slug,
-        'description' => $scraped['description'],
+        'description' => $scraped['description'] ?: null,
         'brand' => $scraped['brand'],
         'price' => $scraped['price'],
         'mrp' => $scraped['mrp'],
@@ -287,7 +370,7 @@ function import_flipkart_product_to_db(string $url, ?string $categoryId = null, 
 
     $productId = $result[0]['id'];
 
-    // Save all images
+    // Save ALL images to product_images table
     if (!empty($scraped['images'])) {
         foreach ($scraped['images'] as $i => $imgUrl) {
             supabase_query('product_images', [], 'POST', [
@@ -302,8 +385,7 @@ function import_flipkart_product_to_db(string $url, ?string $categoryId = null, 
 }
 
 /**
- * Import all products from a Flipkart category URL.
- * Returns ['imported' => count, 'failed' => count, 'total' => count]
+ * Import all products from a Flipkart category/search URL.
  */
 function import_flipkart_category_to_db(string $url, ?string $categoryId = null, int $stock = 10): array {
     $links = scrape_flipkart_category($url);
@@ -317,7 +399,7 @@ function import_flipkart_category_to_db(string $url, ?string $categoryId = null,
         } else {
             $failed++;
         }
-        // Small delay to avoid rate-limiting
+        // Delay to avoid rate-limiting
         usleep(500000); // 0.5 seconds
     }
 
