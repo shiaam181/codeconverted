@@ -37,17 +37,17 @@ $upiId = clean_upi_id($tenant['upi_id'] ?? $theme['upi_id'] ?? null);
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
     <style>
-    .checkout-page{min-height:100vh;background:#f1f3f6}
+    .checkout-page{min-height:100vh;background:#f1f3f6;font-family:'Inter',sans-serif}
     .co-header{position:sticky;top:0;z-index:30;background:#fff;border-bottom:1px solid #eee;box-shadow:0 1px 3px rgba(0,0,0,.04)}
-    .co-header-inner{max-width:800px;margin:0 auto;padding:12px;display:flex;align-items:center;justify-content:space-between}
-    .co-header h1{font-size:16px;font-weight:600}
-    .stepper{max-width:800px;margin:0 auto;padding:12px;display:flex;align-items:center}
-    .step{display:flex;flex-direction:column;align-items:center}
-    .step-circle{width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:500;border:2px solid #c2c2c2;color:#878787;background:#fff}
+    .co-header-inner{max-width:800px;margin:0 auto;padding:14px 16px;display:flex;align-items:center;justify-content:space-between}
+    .co-header h1{font-size:16px;font-weight:600;color:#212121}
+    .stepper{max-width:800px;margin:0 auto;padding:16px 24px;display:flex;align-items:center}
+    .step{display:flex;flex-direction:column;align-items:center;min-width:60px}
+    .step-circle{width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:600;border:2.5px solid #c2c2c2;color:#878787;background:#fff;transition:all .2s}
     .step-circle.active{background:#2874f0;border-color:#2874f0;color:#fff}
-    .step-label{font-size:11px;margin-top:4px;color:#878787}
+    .step-label{font-size:11px;margin-top:6px;color:#878787;white-space:nowrap}
     .step.active .step-label{font-weight:600;color:#212121}
-    .step-line{flex:1;height:2px;background:#e0e0e0;margin:0 8px;margin-bottom:18px}
+    .step-line{flex:1;height:2.5px;background:#e0e0e0;margin:0 4px;margin-bottom:20px;border-radius:2px;transition:background .2s}
     .step-line.done{background:#2874f0}
     
     /* Map view */
@@ -60,16 +60,19 @@ $upiId = clean_upi_id($tenant['upi_id'] ?? $theme['upi_id'] ?? null);
     .map-search-results button:hover{background:#f7f7f7}
     .map-search-results button p.sub{font-size:11px;color:#878787;margin-top:2px}
     #mapContainer{height:55vh;width:100%}
-    .map-locate-btn{position:absolute;bottom:16px;left:50%;transform:translateX(-50%);z-index:500;background:#fff;box-shadow:0 2px 8px rgba(0,0,0,.12);border-radius:24px;padding:8px 16px;display:flex;align-items:center;gap:8px;font-size:13px;font-weight:600;color:#2874f0;border:none;cursor:pointer}
+    .map-locate-btn{position:absolute;bottom:16px;left:50%;transform:translateX(-50%);z-index:500;background:#fff;box-shadow:0 2px 12px rgba(0,0,0,.15);border-radius:24px;padding:10px 20px;display:flex;align-items:center;gap:8px;font-size:13px;font-weight:600;color:#2874f0;border:none;cursor:pointer}
+    .map-locate-btn:hover{background:#f0f7ff}
     
-    /* Location prompt (bottom sheet) */
-    .location-sheet{position:fixed;inset:0;z-index:2000;background:rgba(0,0,0,.4);display:flex;align-items:flex-end}
-    .location-sheet-inner{background:#fff;width:100%;border-radius:16px 16px 0 0;padding:24px 20px;padding-bottom:max(24px,env(safe-area-inset-bottom))}
-    .location-sheet-inner p.title{font-size:16px;font-weight:600;margin-bottom:4px}
-    .location-sheet-inner p.sub{font-size:13px;color:#878787;margin-bottom:16px}
-    .location-sheet-inner .btn{width:100%;padding:14px;border-radius:6px;font-size:15px;font-weight:600;border:none;cursor:pointer;margin-bottom:10px}
-    .location-sheet-inner .btn-blue{background:#2874f0;color:#fff}
-    .location-sheet-inner .btn-outline{background:#fff;color:#2874f0;border:1.5px solid #2874f0}
+    /* Location prompt (bottom sheet) - exact Flipkart style */
+    .location-sheet{position:fixed;inset:0;z-index:2000;background:rgba(0,0,0,.5);display:flex;align-items:flex-end;justify-content:center}
+    .location-sheet-inner{background:#fff;width:100%;max-width:500px;border-radius:20px 20px 0 0;padding:28px 24px;padding-bottom:max(28px,env(safe-area-inset-bottom))}
+    .location-sheet-inner p.title{font-size:18px;font-weight:700;color:#212121;margin-bottom:6px}
+    .location-sheet-inner p.sub{font-size:14px;color:#878787;margin-bottom:20px}
+    .location-sheet-inner .btn{width:100%;padding:16px;border-radius:8px;font-size:15px;font-weight:600;cursor:pointer;margin-bottom:12px;display:flex;align-items:center;justify-content:center;gap:8px}
+    .location-sheet-inner .btn-blue{background:#2874f0;color:#fff;border:none}
+    .location-sheet-inner .btn-blue:hover{background:#1a5dc8}
+    .location-sheet-inner .btn-outline{background:#fff;color:#2874f0;border:2px solid #2874f0}
+    .location-sheet-inner .btn-outline:hover{background:#f0f7ff}
     
     /* Deliver-to bottom card (on map) */
     .map-bottom-card{background:#fff;padding:16px}
@@ -126,11 +129,11 @@ $upiId = clean_upi_id($tenant['upi_id'] ?? $theme['upi_id'] ?? null);
     .savings-bar{background:#e8f5e9;color:#1b5e20;font-size:13px;text-align:center;padding:8px;border-radius:4px;margin-top:12px}
     
     /* Sticky footer */
-    .co-footer{position:fixed;bottom:0;left:0;right:0;z-index:20;background:#fff;border-top:1px solid #eee;box-shadow:0 -2px 8px rgba(0,0,0,.06);padding:10px 12px;display:flex;align-items:center;justify-content:space-between;gap:12px}
-    .co-footer .price-col .mrp{font-size:13px;color:#878787;text-decoration:line-through}
-    .co-footer .price-col .total{font-size:18px;font-weight:600}
-    .co-footer .price-col .link{font-size:12px;color:#2874f0}
-    .co-footer .continue-btn{background:#fb641b;color:#fff;border:none;padding:12px 28px;border-radius:4px;font-size:15px;font-weight:600;cursor:pointer}
+    .co-footer{position:fixed;bottom:0;left:0;right:0;z-index:20;background:#fff;border-top:1px solid #eee;box-shadow:0 -2px 10px rgba(0,0,0,.08);padding:12px 16px;display:flex;align-items:center;justify-content:space-between;gap:12px}
+    .co-footer .price-col .mrp{font-size:13px;color:#878787;text-decoration:line-through;line-height:1}
+    .co-footer .price-col .total{font-size:20px;font-weight:700;line-height:1.2}
+    .co-footer .price-col .link{font-size:12px;color:#2874f0;cursor:pointer}
+    .co-footer .continue-btn{background:#fb641b;color:#fff;border:none;padding:14px 32px;border-radius:4px;font-size:15px;font-weight:600;cursor:pointer}
     .co-footer .continue-btn:hover{background:#f55a0e}
     </style>
 </head>
@@ -167,7 +170,7 @@ $upiId = clean_upi_id($tenant['upi_id'] ?? $theme['upi_id'] ?? null);
                 <div class="map-search-results" id="mapSearchResults" style="display:none"></div>
             </div>
             <div id="mapContainer"></div>
-            <button type="button" class="map-locate-btn" onclick="useCurrentLocation()">📍 Use my current location</button>
+            <button type="button" class="map-locate-btn" onclick="useCurrentLocation()"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M22 12h-4"/><path d="M6 12H2"/><path d="M12 6V2"/><path d="M12 22v-4"/></svg> Use my current location</button>
         </div>
         <div class="map-bottom-card">
             <div class="area-box">
@@ -332,7 +335,7 @@ $upiId = clean_upi_id($tenant['upi_id'] ?? $theme['upi_id'] ?? null);
             <p class="title">Where do you want us to deliver the order?</p>
             <p class="sub">This will help with the right map location</p>
             <button type="button" class="btn btn-blue" onclick="closeSheet()">Away from my location</button>
-            <button type="button" class="btn btn-outline" onclick="useCurrentLocation();closeSheet()">📍 Use current location</button>
+            <button type="button" class="btn btn-outline" onclick="useCurrentLocation();closeSheet()"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M22 12h-4"/><path d="M6 12H2"/><path d="M12 6V2"/><path d="M12 22v-4"/></svg> Use current location</button>
         </div>
     </div>
 </div>
