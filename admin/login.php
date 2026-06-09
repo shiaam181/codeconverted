@@ -17,10 +17,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['admin_action'] ?? '') === 
         if (isset($result['error'])) {
             $loginError = $result['error']['message'] ?? 'Login failed. Check credentials.';
         } else {
-            $_SESSION['admin_token'] = $result['access_token'] ?? '';
-            $_SESSION['admin_user_id'] = $result['user']['id'] ?? '';
-            $_SESSION['admin_username'] = $username;
-            redirect('/admin');
+            $token = $result['access_token'] ?? '';
+            $userId = $result['user']['id'] ?? '';
+            if (!$token || !$userId) {
+                $loginError = 'Login failed: no token received. Check Supabase configuration.';
+            } else {
+                $_SESSION['admin_token'] = $token;
+                $_SESSION['admin_user_id'] = $userId;
+                $_SESSION['admin_username'] = $username;
+                redirect('/admin');
+            }
         }
     }
 }
@@ -41,8 +47,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['admin_action'] ?? '') === 
         } else {
             // Auto-login after signup
             $loginResult = supabase_auth_login($email, $password);
-            if (!isset($loginResult['error'])) {
-                $_SESSION['admin_token'] = $loginResult['access_token'] ?? '';
+            if (!isset($loginResult['error']) && !empty($loginResult['access_token'])) {
+                $_SESSION['admin_token'] = $loginResult['access_token'];
                 $_SESSION['admin_user_id'] = $loginResult['user']['id'] ?? '';
                 $_SESSION['admin_username'] = $username;
                 // Try to claim first admin
