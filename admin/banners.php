@@ -7,9 +7,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $action = $_POST['banner_action'] ?? '';
     
     if ($action === 'create' || $action === 'update') {
+        $imageUrl = trim($_POST['image_url'] ?? '');
+        
+        // Handle file upload for banner image - overrides URL if present
+        if (!empty($_FILES['banner_image_file']['tmp_name']) && $_FILES['banner_image_file']['error'] === UPLOAD_ERR_OK) {
+            $uploadedUrl = upload_to_supabase_storage($_FILES['banner_image_file'], 'banners');
+            if ($uploadedUrl) {
+                $imageUrl = $uploadedUrl;
+            }
+        }
+        
         $payload = [
             'title' => trim($_POST['title'] ?? '') ?: null,
-            'image_url' => trim($_POST['image_url'] ?? ''),
+            'image_url' => $imageUrl,
             'link_url' => trim($_POST['link_url'] ?? '') ?: null,
             'position' => $_POST['position'] ?? 'hero',
             'sort_order' => (int) ($_POST['sort_order'] ?? 0),
@@ -17,7 +27,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         ];
         
         if (!$payload['image_url']) {
-            flash('error', 'Image URL is required');
+            flash('error', 'Image URL or file upload is required');
             redirect('/admin/banners');
         }
         

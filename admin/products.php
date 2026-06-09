@@ -22,11 +22,43 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             'is_featured' => isset($_POST['is_featured']),
         ];
         
+        $productIdForImages = null;
+        
         if ($action === 'update' && !empty($_POST['product_id'])) {
             supabase_query('products', ['id' => 'eq.' . $_POST['product_id']], 'PATCH', $payload);
+            $productIdForImages = $_POST['product_id'];
         } else {
-            supabase_query('products', [], 'POST', $payload);
+            $result = supabase_query('products', [], 'POST', $payload);
+            if (is_array($result) && !empty($result[0]['id'])) {
+                $productIdForImages = $result[0]['id'];
+            }
         }
+        
+        // Handle product image uploads
+        if ($productIdForImages && !empty($_FILES['product_images']['name'][0])) {
+            $fileCount = count($_FILES['product_images']['name']);
+            for ($i = 0; $i < $fileCount; $i++) {
+                if ($_FILES['product_images']['error'][$i] !== UPLOAD_ERR_OK) continue;
+                
+                $file = [
+                    'name' => $_FILES['product_images']['name'][$i],
+                    'type' => $_FILES['product_images']['type'][$i],
+                    'tmp_name' => $_FILES['product_images']['tmp_name'][$i],
+                    'error' => $_FILES['product_images']['error'][$i],
+                    'size' => $_FILES['product_images']['size'][$i],
+                ];
+                
+                $imageUrl = upload_to_supabase_storage($file, 'products');
+                if ($imageUrl) {
+                    supabase_query('product_images', [], 'POST', [
+                        'product_id' => $productIdForImages,
+                        'url' => $imageUrl,
+                        'sort_order' => $i,
+                    ]);
+                }
+            }
+        }
+        
         flash('success', 'Product saved');
         redirect('/admin/products');
     }
@@ -35,6 +67,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         supabase_query('product_images', ['product_id' => 'eq.' . $_POST['product_id']], 'DELETE');
         supabase_query('products', ['id' => 'eq.' . $_POST['product_id']], 'DELETE');
         flash('success', 'Product deleted');
+        redirect('/admin/products');
+    }
+    
+    if ($action === 'clear_all') {
+        supabase_query('products', ['tenant_id' => 'is.null'], 'DELETE');
+        flash('success', 'All products cleared');
         redirect('/admin/products');
     }
 }
@@ -57,7 +95,14 @@ require __DIR__ . '/layout.php';
             <h2>Products</h2>
             <p class="text-muted">Manage your catalog. <?= count($products) ?> products.</p>
         </div>
-        <a href="/admin/products/new" class="btn-primary">+ New product</a>
+        <div class="header-actions">
+            <a href="/admin/products/new" class="btn-primary">+ New product</a>
+            <a href="/admin/products/bulk" class="btn-outline">Bulk add</a>
+            <form method="POST" action="/admin/products" style="display:inline" onsubmit="return confirm('Are you sure you want to delete ALL products? This cannot be undone.')">
+                <input type="hidden" name="product_action" value="clear_all">
+                <button type="submit" class="btn-danger">Clear All Products</button>
+            </form>
+        </div>
     </div>
 </div>
 

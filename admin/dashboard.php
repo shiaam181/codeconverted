@@ -11,21 +11,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $settingAction = $_POST['setting_action'] ?? '';
     if ($settingAction === 'grid_cols') {
         $cols = $_POST['grid_cols'] ?? '2';
-        supabase_query('app_settings', [], 'POST', [
-            'key' => 'storefront_grid_cols',
-            'value' => $cols,
-            'updated_at' => date('c'),
-        ]);
+        upsert_app_setting('storefront_grid_cols', $cols);
         flash('success', "Storefront set to {$cols} columns on mobile");
         redirect('/admin');
     }
     if ($settingAction === 'delivery_charges') {
         $enabled = isset($_POST['delivery_enabled']) ? 'true' : 'false';
-        supabase_query('app_settings', [], 'POST', [
-            'key' => 'delivery_charges_enabled',
-            'value' => $enabled,
-            'updated_at' => date('c'),
-        ]);
+        upsert_app_setting('delivery_charges_enabled', $enabled);
         flash('success', $enabled === 'true' ? 'Delivery charges enabled' : 'Delivery charges disabled');
         redirect('/admin');
     }

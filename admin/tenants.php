@@ -6,6 +6,13 @@
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $action = $_POST['tenant_action'] ?? '';
     
+    if ($action === 'save_domain') {
+        $domain = trim($_POST['primary_domain'] ?? '');
+        upsert_app_setting('primary_domain', $domain);
+        flash('success', 'Primary domain saved');
+        redirect('/admin/tenants');
+    }
+    
     if ($action === 'create') {
         $name = trim($_POST['name'] ?? '');
         $slug = trim($_POST['slug'] ?? '') ?: slugify($name);
@@ -28,6 +35,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
         
         supabase_query('tenants', [], 'POST', $payload);
+        
+        // Create admin account for tenant if username/password provided
+        $adminEmail = trim($_POST['admin_email'] ?? '');
+        $adminPassword = trim($_POST['admin_password'] ?? '');
+        if ($adminEmail && $adminPassword) {
+            supabase_auth_signup($adminEmail, $adminPassword);
+        }
+        
         flash('success', "Store \"{$name}\" created");
         redirect('/admin/tenants');
     }
@@ -62,6 +77,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 }
 
 $tenants = get_admin_tenants();
+$primaryDomain = get_app_setting('primary_domain') ?? '';
 
 require __DIR__ . '/layout.php';
 ?>
@@ -72,6 +88,24 @@ require __DIR__ . '/layout.php';
 <?php if ($msg = get_flash('error')): ?>
 <div class="alert alert-error"><?= e($msg) ?></div>
 <?php endif; ?>
+
+<!-- Primary Domain Card -->
+<div class="admin-section">
+    <div class="setting-card">
+        <h4>Primary Domain</h4>
+        <p class="text-muted">Set the primary domain for your storefront platform.</p>
+        <?php if ($primaryDomain): ?>
+        <p style="margin: 0.5rem 0;"><strong>Current:</strong> <code><?= e($primaryDomain) ?></code></p>
+        <?php endif; ?>
+        <form method="POST" action="/admin/tenants" class="setting-form" style="margin-top: 0.5rem;">
+            <input type="hidden" name="tenant_action" value="save_domain">
+            <div style="display: flex; gap: 0.5rem; align-items: center;">
+                <input type="text" name="primary_domain" value="<?= e($primaryDomain) ?>" class="form-input" placeholder="example.com" style="flex:1;">
+                <button type="submit" class="btn-primary">Save Domain</button>
+            </div>
+        </form>
+    </div>
+</div>
 
 <div class="admin-section">
     <div class="section-header">

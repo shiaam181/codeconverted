@@ -39,6 +39,21 @@ require __DIR__ . '/layout.php';
         </div>
     </div>
     
+    <hr style="margin: 1.5rem 0; border-color: #e5e7eb;">
+    <h4 style="margin-bottom: 1rem;">Tenant Admin Account (optional)</h4>
+    <p class="text-muted" style="margin-bottom: 1rem;">Create a login account for this tenant's admin panel.</p>
+    
+    <div class="form-grid">
+        <div class="form-group">
+            <label>Admin Email</label>
+            <input type="email" name="admin_email" class="form-input" placeholder="admin@tenant.com">
+        </div>
+        <div class="form-group">
+            <label>Admin Password</label>
+            <input type="password" name="admin_password" class="form-input" placeholder="Min 6 characters" minlength="6">
+        </div>
+    </div>
+    
     <div class="form-actions">
         <a href="/admin/tenants" class="btn-outline">Cancel</a>
         <button type="submit" class="btn-primary">Create Store</button>
