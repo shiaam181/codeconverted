@@ -238,9 +238,18 @@ input,select,textarea{font:inherit}
         
         <div class="flat-field"><label>Flat/House/building name *</label><input type="text" id="fFlat" name="flat" required></div>
         
-        <div class="area-ro">
+        <div class="area-ro" id="areaRoBlock">
             <div class="info"><p class="lbl">Area / Sector / Locality</p><p class="val" id="roArea"></p><p class="bold" id="roCityState"></p></div>
             <button type="button" class="ch-btn" onclick="go('map')">Change</button>
+        </div>
+        <!-- Manual address fields (shown if map unavailable) -->
+        <div id="manualFields" style="display:none">
+            <div class="fi"><input type="text" id="mArea" placeholder="Area / Street / Sector *" oninput="document.getElementById('fArea').value=this.value"></div>
+            <div style="display:flex;gap:10px">
+                <div class="fi" style="flex:1"><input type="text" id="mCity" placeholder="City *" oninput="document.getElementById('fCity').value=this.value"></div>
+                <div class="fi" style="flex:1"><input type="text" id="mState" placeholder="State *" oninput="document.getElementById('fState').value=this.value"></div>
+            </div>
+            <div class="fi"><input type="text" id="mPostal" placeholder="PIN Code *" oninput="document.getElementById('fPostal').value=this.value"></div>
         </div>
         
         <div class="fi"><input type="text" name="name" id="fName" placeholder="Enter your full name *" required></div>
@@ -460,7 +469,19 @@ function saveAddr(){
     go('summary');
 }
 
-document.addEventListener('DOMContentLoaded',()=>{go('map');initMap()});
+document.addEventListener('DOMContentLoaded',()=>{
+    if(typeof L==='undefined'){
+        // Leaflet failed to load - show form directly with manual fields
+        document.getElementById('vMap').style.display='none';
+        var f=document.getElementById('vForm');f.style.display='';f.classList.add('show');
+        document.getElementById('areaRoBlock').style.display='none';
+        document.getElementById('manualFields').style.display='block';
+        document.getElementById('roArea').textContent='Enter address manually';
+        document.getElementById('roCityState').textContent='';
+    } else {
+        go('map');initMap();
+    }
+});
 </script>
 </body>
 </html>
