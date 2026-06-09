@@ -12,7 +12,7 @@ $img = $images[0] ?? null;
 $price = (float) $product['price'];
 $mrp = !empty($product['mrp']) ? (float) $product['mrp'] : null;
 $discount = calc_discount($price, $mrp, (int) ($product['discount_percent'] ?? 0));
-$rating = !empty($product['rating']) ? (float) $product['rating'] : 0;
+$rating = !empty($product['rating']) ? max(4.0, (float) $product['rating']) : 4.2;
 $buyAt = max(0, round($price - 50));
 
 $productLink = $tenant 

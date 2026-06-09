@@ -373,11 +373,17 @@ function reverseGeocode(lat,lng){
 }
 
 function useCurrentLocation(){
-    if(!navigator.geolocation)return alert('Location not available');
+    if(!navigator.geolocation){
+        document.getElementById('mapSearchInput').focus();
+        return;
+    }
     navigator.geolocation.getCurrentPosition(function(p){
         var lat=p.coords.latitude,lng=p.coords.longitude;
         map.setView([lat,lng],16);marker.setLatLng([lat,lng]);setPin(lat,lng);
-    },function(){alert("Couldn't get location")});
+    },function(){
+        document.getElementById('mapSearchInput').placeholder='Search your location manually';
+        document.getElementById('mapSearchInput').focus();
+    });
 }
 
 function closeSheet(){document.getElementById('locationSheet').style.display='none'}
