@@ -11,6 +11,9 @@ $cartItems = cart_get();
 $cartCount = array_sum(array_column($cartItems, 'quantity'));
 $cartLink = $tenant ? "/t/{$tenant['slug']}/cart" : '/cart';
 $searchLink = $tenant ? "/t/{$tenant['slug']}/search" : '/search';
+
+// Load header tab icons
+$headerIcons = get_icon_settings();
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -32,12 +35,21 @@ $searchLink = $tenant ? "/t/{$tenant['slug']}/search" : '/search';
     <div class="header-tabs">
         <div class="header-tabs-inner">
             <button class="tab-btn active" data-tab="flipkart">
+                <?php if (!empty($headerIcons['tab_flipkart'])): ?>
+                <img src="<?= e($headerIcons['tab_flipkart']) ?>" class="tab-icon-img" alt="Flipkart">
+                <?php endif; ?>
                 <span class="tab-label">Flipkart</span>
             </button>
             <button class="tab-btn" data-tab="minutes">
+                <?php if (!empty($headerIcons['tab_minutes'])): ?>
+                <img src="<?= e($headerIcons['tab_minutes']) ?>" class="tab-icon-img" alt="Minutes">
+                <?php endif; ?>
                 <span class="tab-label">Minutes</span>
             </button>
             <button class="tab-btn" data-tab="travel">
+                <?php if (!empty($headerIcons['tab_travel'])): ?>
+                <img src="<?= e($headerIcons['tab_travel']) ?>" class="tab-icon-img" alt="Travel">
+                <?php endif; ?>
                 <span class="tab-label">Travel</span>
             </button>
             <a href="<?= e($cartLink) ?>" class="cart-icon" aria-label="Cart">

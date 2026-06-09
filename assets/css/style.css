@@ -82,6 +82,7 @@ ul { list-style: none; }
 .tab-btn.active { background: #ffe500; }
 .tab-label { font-size: 12px; font-weight: 700; font-style: italic; color: #333; white-space: nowrap; }
 .tab-btn.active .tab-label { color: #1f63c2; }
+.tab-icon-img { width: 18px; height: 18px; object-fit: contain; border-radius: 3px; flex-shrink: 0; }
 .cart-icon {
     position: relative; display: grid; place-items: center;
     width: 36px; height: 36px; border-radius: 50%;

@@ -25,6 +25,9 @@ $cartLink = $tenant ? "/t/{$tenant['slug']}/cart" : '/cart';
 $theme = get_theme();
 $siteName = $theme['site_name'] ?? DEFAULT_SITE_NAME;
 $upiId = clean_upi_id($tenant['upi_id'] ?? $theme['upi_id'] ?? null);
+
+// Load icon settings for payment section
+$iconSettings = get_icon_settings();
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -317,35 +320,35 @@ input,select,textarea{font:inherit}
     
     <div class="pay-section">
         <div class="pay-row" onclick="document.getElementById('fPay').value='upi'">
-            <div class="icon">💳</div>
+            <div class="icon"><?php if (!empty($iconSettings['pay_recommended'])): ?><img src="<?= e($iconSettings['pay_recommended']) ?>" style="width:28px;height:28px;object-fit:contain;"><?php else: ?>💳<?php endif; ?></div>
             <div class="info"><p class="main">Recommended for You</p></div>
             <span class="arrow">›</span>
         </div>
     </div>
     <div class="pay-section">
         <div class="pay-row">
-            <div class="icon">💳</div>
+            <div class="icon"><?php if (!empty($iconSettings['pay_credit_card'])): ?><img src="<?= e($iconSettings['pay_credit_card']) ?>" style="width:28px;height:28px;object-fit:contain;"><?php else: ?>💳<?php endif; ?></div>
             <div class="info"><p class="main">Credit / Debit / ATM Card</p><p class="sub">Add and secure cards as per RBI guidelines</p><p class="offer">Get upto 5% cashback • 2 offers available</p></div>
             <span class="arrow">›</span>
         </div>
     </div>
     <div class="pay-section">
         <div class="pay-row" onclick="document.getElementById('fPay').value='cod'">
-            <div class="icon">📦</div>
+            <div class="icon"><?php if (!empty($iconSettings['pay_cod'])): ?><img src="<?= e($iconSettings['pay_cod']) ?>" style="width:28px;height:28px;object-fit:contain;"><?php else: ?>📦<?php endif; ?></div>
             <div class="info"><p class="main">Cash on Delivery</p></div>
             <span class="arrow">›</span>
         </div>
     </div>
     <div class="pay-section">
         <div class="pay-row">
-            <div class="icon">🎁</div>
+            <div class="icon"><?php if (!empty($iconSettings['pay_gift_card'])): ?><img src="<?= e($iconSettings['pay_gift_card']) ?>" style="width:28px;height:28px;object-fit:contain;"><?php else: ?>🎁<?php endif; ?></div>
             <div class="info"><p class="main">Have a Flipkart Gift Card?</p></div>
             <span style="font-size:13px;color:#2874f0;font-weight:500">Add</span>
         </div>
     </div>
     <div class="pay-section">
-        <div class="pay-row"><div class="icon">📱</div><div class="info"><p class="main">UPI</p></div><span class="unavail">Unavailable ⓘ</span></div>
-        <div class="pay-row"><div class="icon">📅</div><div class="info"><p class="main">EMI</p></div><span class="unavail">Unavailable ⓘ</span></div>
+        <div class="pay-row"><div class="icon"><?php if (!empty($iconSettings['pay_upi'])): ?><img src="<?= e($iconSettings['pay_upi']) ?>" style="width:28px;height:28px;object-fit:contain;"><?php else: ?>📱<?php endif; ?></div><div class="info"><p class="main">UPI</p></div><span class="unavail">Unavailable ⓘ</span></div>
+        <div class="pay-row"><div class="icon"><?php if (!empty($iconSettings['pay_emi'])): ?><img src="<?= e($iconSettings['pay_emi']) ?>" style="width:28px;height:28px;object-fit:contain;"><?php else: ?>📅<?php endif; ?></div><div class="info"><p class="main">EMI</p></div><span class="unavail">Unavailable ⓘ</span></div>
     </div>
     
     <p style="text-align:center;font-size:13px;color:#388e3c;margin-top:20px;font-weight:500">35 Crore happy customers and counting! 😊</p>

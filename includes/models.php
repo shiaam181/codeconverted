@@ -282,3 +282,34 @@ function get_app_setting(string $key): ?string {
     ]);
     return (!empty($data) && !isset($data['error'])) ? ($data[0]['value'] ?? null) : null;
 }
+
+/**
+ * Get all icon settings (payment icons + header tab icons)
+ * Returns an associative array keyed by icon_key => image_url
+ */
+function get_icon_settings(): array {
+    $data = supabase_query('app_settings', [
+        'key' => 'like.icon_%',
+        'select' => 'key,value',
+    ]);
+    
+    if (empty($data) || isset($data['error'])) {
+        return [];
+    }
+    
+    $icons = [];
+    foreach ($data as $row) {
+        // Strip the 'icon_' prefix for cleaner keys
+        $key = str_replace('icon_', '', $row['key']);
+        $icons[$key] = $row['value'];
+    }
+    return $icons;
+}
+
+/**
+ * Get a single icon URL by key, with optional fallback
+ */
+function get_icon(string $key, string $fallback = ''): string {
+    $value = get_app_setting('icon_' . $key);
+    return $value ?: $fallback;
+}
