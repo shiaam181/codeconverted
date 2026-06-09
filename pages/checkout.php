@@ -62,7 +62,7 @@ input,select,textarea{font:inherit}
 .map-hdr{background:#fff;padding:12px 16px;display:flex;align-items:center;gap:12px;border-bottom:1px solid #f0f0f0}
 .map-hdr h2{font-size:15px;font-weight:600}
 .map-wrap{position:relative}
-#mapEl{height:50vh;width:100%}
+#mapEl{height:50vh;width:100%;background:#e8e8e8}
 .map-searchbar{position:absolute;top:10px;left:10px;right:10px;z-index:500}
 .map-searchbar input{width:100%;padding:11px 16px 11px 40px;border-radius:24px;border:none;background:#fff;box-shadow:0 2px 10px rgba(0,0,0,.12);font-size:14px;outline:none}
 .map-searchbar svg{position:absolute;left:14px;top:12px;color:#878787}
@@ -378,6 +378,12 @@ input,select,textarea{font:inherit}
 var map,marker,area={area:'',city:'',state:'',postal:''};
 
 function initMap(){
+    if(typeof L==='undefined'){
+        // Leaflet failed to load - skip map, enable form directly
+        document.getElementById('mapCtnBtn').disabled=false;
+        document.getElementById('areaName').textContent='Enter address manually';
+        return;
+    }
     map=L.map('mapEl',{zoomControl:false}).setView([12.9716,77.5946],14);
     L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',{maxZoom:19}).addTo(map);
     var icon=L.divIcon({className:'',html:'<div style="display:flex;flex-direction:column;align-items:center"><div style="background:#212121;color:#fff;font-size:11px;font-weight:600;padding:4px 10px;border-radius:6px;white-space:nowrap;margin-bottom:4px">Place pin on the exact location</div><svg width="30" height="38" viewBox="0 0 24 30" fill="#212121"><path d="M12 0C5.4 0 0 5.4 0 12c0 8 12 18 12 18s12-10 12-18C24 5.4 18.6 0 12 0z"/><circle cx="12" cy="12" r="4" fill="#fff"/></svg></div>',iconSize:[30,70],iconAnchor:[15,65]});
@@ -403,12 +409,12 @@ function pin(lat,lng){
 }
 
 function useLoc(){
-    if(!navigator.geolocation)return alert('Location not available');
+    if(!navigator.geolocation||typeof L==='undefined'){document.getElementById('searchIn').focus();return}
     navigator.geolocation.getCurrentPosition(p=>{
         map.setView([p.coords.latitude,p.coords.longitude],16);
         marker.setLatLng([p.coords.latitude,p.coords.longitude]);
         pin(p.coords.latitude,p.coords.longitude);
-    },()=>alert("Couldn't get location"));
+    },()=>{document.getElementById('searchIn').focus()});
 }
 
 function closeSheet(){document.getElementById('locSheet').classList.remove('show')}
