@@ -23,7 +23,7 @@ require __DIR__ . '/layout.php';
     </div>
 </div>
 
-<form method="POST" action="/admin/categories" class="admin-form">
+<form method="POST" action="/admin/categories" enctype="multipart/form-data" class="admin-form">
     <input type="hidden" name="cat_action" value="<?= $isEdit ? 'update' : 'create' ?>">
     <?php if ($isEdit): ?>
     <input type="hidden" name="cat_id" value="<?= e($category['id']) ?>">
@@ -41,6 +41,14 @@ require __DIR__ . '/layout.php';
         <div class="form-group full">
             <label>Image URL</label>
             <input type="url" name="image_url" value="<?= e($category['image_url'] ?? '') ?>" class="form-input" placeholder="https://...">
+            <?php if ($isEdit && !empty($category['image_url'])): ?>
+            <img src="<?= e($category['image_url']) ?>" style="max-height: 80px; margin-top: 0.5rem;" alt="">
+            <?php endif; ?>
+        </div>
+        <div class="form-group full">
+            <label>Or Upload Category Image</label>
+            <input type="file" name="category_image_file" accept="image/*" class="form-input">
+            <p class="form-hint">If a file is uploaded, it will be used instead of the URL above.</p>
         </div>
         <div class="form-group">
             <label>Sort Order</label>

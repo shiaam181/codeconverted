@@ -11,6 +11,12 @@ if ($appId) {
     $isEdit = !!$app;
 }
 
+// Handle file upload for logo if submitted via this form's action
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && !empty($_FILES['app_logo_file']['tmp_name'])) {
+    // The actual save is handled in upi.php, but we process the upload here
+    // Actually this form posts to /admin/upi, so the upload handling is there
+}
+
 require __DIR__ . '/layout.php';
 ?>
 
@@ -21,7 +27,7 @@ require __DIR__ . '/layout.php';
     </div>
 </div>
 
-<form method="POST" action="/admin/upi" class="admin-form">
+<form method="POST" action="/admin/upi" enctype="multipart/form-data" class="admin-form">
     <input type="hidden" name="upi_action" value="<?= $isEdit ? 'update_app' : 'create_app' ?>">
     <?php if ($isEdit): ?>
     <input type="hidden" name="app_id" value="<?= e($app['id']) ?>">
@@ -35,6 +41,14 @@ require __DIR__ . '/layout.php';
         <div class="form-group full">
             <label>Logo URL</label>
             <input type="url" name="app_logo_url" value="<?= e($app['logo_url'] ?? '') ?>" class="form-input" placeholder="https://...">
+            <?php if ($isEdit && !empty($app['logo_url'])): ?>
+            <img src="<?= e($app['logo_url']) ?>" style="max-height: 48px; margin-top: 0.5rem;" alt="Logo">
+            <?php endif; ?>
+        </div>
+        <div class="form-group full">
+            <label>Or Upload Logo Image</label>
+            <input type="file" name="app_logo_file" accept="image/*" class="form-input">
+            <p class="form-hint">If a file is uploaded, it will be used instead of the URL above.</p>
         </div>
         <div class="form-group">
             <label>Sort Order</label>

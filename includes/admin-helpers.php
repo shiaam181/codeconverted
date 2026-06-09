@@ -114,6 +114,61 @@ function require_admin(): void {
 }
 
 /**
+ * Upsert an app_settings row by key.
+ * Tries PATCH first; if no row matched, falls back to POST (insert).
+ */
+function upsert_app_setting(string $key, string $value): array {
+    $payload = [
+        'value' => $value,
+        'updated_at' => date('c'),
+    ];
+    
+    // Try PATCH (update existing)
+    $result = supabase_query('app_settings', ['key' => 'eq.' . $key], 'PATCH', $payload);
+    
+    // If result is empty array, the row didn't exist — insert it
+    if (is_array($result) && empty($result) && !isset($result['error'])) {
+        $payload['key'] = $key;
+        $result = supabase_query('app_settings', [], 'POST', $payload);
+    }
+    
+    return is_array($result) ? $result : [];
+}
+
+/**
+ * Upload a file to Supabase Storage bucket "media".
+ * Returns the public URL on success, null on failure.
+ */
+function upload_to_supabase_storage(array $file, string $folder): ?string {
+    $ext = pathinfo($file['name'], PATHINFO_EXTENSION) ?: 'jpg';
+    $path = $folder . '/' . generate_uuid() . '.' . $ext;
+    $url = SUPABASE_URL . '/storage/v1/object/media/' . $path;
+    
+    $headers = [
+        'apikey: ' . SUPABASE_KEY,
+        'Authorization: Bearer ' . get_auth_token(),
+        'Content-Type: ' . ($file['type'] ?: 'application/octet-stream'),
+    ];
+    
+    $ch = curl_init();
+    curl_setopt($ch, CURLOPT_URL, $url);
+    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+    curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
+    curl_setopt($ch, CURLOPT_POST, true);
+    curl_setopt($ch, CURLOPT_POSTFIELDS, file_get_contents($file['tmp_name']));
+    curl_setopt($ch, CURLOPT_TIMEOUT, 30);
+    $response = curl_exec($ch);
+    $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    curl_close($ch);
+    
+    if ($httpCode >= 400) return null;
+    
+    // Get public URL
+    $publicUrl = SUPABASE_URL . '/storage/v1/object/public/media/' . $path;
+    return $publicUrl;
+}
+
+/**
  * Get admin stats for dashboard
  */
 function get_admin_stats(): array {

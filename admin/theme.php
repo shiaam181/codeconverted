@@ -5,7 +5,6 @@
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['theme_action'] ?? '') === 'save') {
     $payload = [
-        'id' => 1,
         'site_name' => trim($_POST['site_name'] ?? DEFAULT_SITE_NAME),
         'logo_url' => trim($_POST['logo_url'] ?? '') ?: null,
         'favicon_url' => trim($_POST['favicon_url'] ?? '') ?: null,
@@ -17,7 +16,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['theme_action'] ?? '') === 
         'border_radius' => trim($_POST['border_radius'] ?? '0.375rem'),
     ];
     
-    supabase_query('theme_config', [], 'POST', $payload);
+    supabase_query('theme_config', ['id' => 'eq.1'], 'PATCH', $payload);
     flash('success', 'Theme saved');
     redirect('/admin/theme');
 }

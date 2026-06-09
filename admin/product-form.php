@@ -28,7 +28,7 @@ require __DIR__ . '/layout.php';
     </div>
 </div>
 
-<form method="POST" action="/admin/products" class="admin-form">
+<form method="POST" action="/admin/products" enctype="multipart/form-data" class="admin-form">
     <input type="hidden" name="product_action" value="<?= $isEdit ? 'update' : 'create' ?>">
     <?php if ($isEdit): ?>
     <input type="hidden" name="product_id" value="<?= e($product['id']) ?>">
@@ -112,6 +112,13 @@ require __DIR__ . '/layout.php';
         </div>
     </div>
     <?php endif; ?>
+    
+    <!-- Product Image Upload -->
+    <div class="form-group full" style="margin-top: 1rem;">
+        <label>Upload Product Images</label>
+        <input type="file" name="product_images[]" multiple accept="image/*" class="form-input">
+        <p class="form-hint">Select one or more images. They will be uploaded and linked to this product.</p>
+    </div>
     
     <div class="form-actions">
         <a href="/admin/products" class="btn-outline">Cancel</a>

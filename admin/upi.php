@@ -28,9 +28,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     
     // CRUD for UPI apps
     if ($action === 'create_app' || $action === 'update_app') {
+        $logoUrl = trim($_POST['app_logo_url'] ?? '') ?: null;
+        
+        // Handle file upload for logo - overrides URL if present
+        if (!empty($_FILES['app_logo_file']['tmp_name']) && $_FILES['app_logo_file']['error'] === UPLOAD_ERR_OK) {
+            $uploadedUrl = upload_to_supabase_storage($_FILES['app_logo_file'], 'upi-logos');
+            if ($uploadedUrl) {
+                $logoUrl = $uploadedUrl;
+            }
+        }
+        
         $payload = [
             'name' => trim($_POST['app_name'] ?? ''),
-            'logo_url' => trim($_POST['app_logo_url'] ?? '') ?: null,
+            'logo_url' => $logoUrl,
             'scheme' => 'upi',
             'is_active' => isset($_POST['app_is_active']),
             'sort_order' => (int) ($_POST['app_sort_order'] ?? 0),

@@ -23,7 +23,7 @@ require __DIR__ . '/layout.php';
     </div>
 </div>
 
-<form method="POST" action="/admin/banners" class="admin-form">
+<form method="POST" action="/admin/banners" enctype="multipart/form-data" class="admin-form">
     <input type="hidden" name="banner_action" value="<?= $isEdit ? 'update' : 'create' ?>">
     <?php if ($isEdit): ?>
     <input type="hidden" name="banner_id" value="<?= e($banner['id']) ?>">
@@ -36,11 +36,17 @@ require __DIR__ . '/layout.php';
         </div>
         
         <div class="form-group full">
-            <label>Image URL *</label>
-            <input type="url" name="image_url" required value="<?= e($banner['image_url'] ?? '') ?>" class="form-input" placeholder="https://...">
+            <label>Image URL</label>
+            <input type="url" name="image_url" value="<?= e($banner['image_url'] ?? '') ?>" class="form-input" placeholder="https://...">
             <?php if ($isEdit && !empty($banner['image_url'])): ?>
             <img src="<?= e($banner['image_url']) ?>" class="preview-banner" alt="">
             <?php endif; ?>
+        </div>
+        
+        <div class="form-group full">
+            <label>Or Upload Banner Image</label>
+            <input type="file" name="banner_image_file" accept="image/*" class="form-input">
+            <p class="form-hint">If a file is uploaded, it will be used instead of the URL above.</p>
         </div>
         
         <div class="form-group full">
