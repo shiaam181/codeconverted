@@ -1,6 +1,6 @@
 <?php
 /**
- * Admin Product Create/Edit Form
+ * Admin Product Create/Edit Form with image upload
  */
 
 $productId = get_param('id');
@@ -102,22 +102,35 @@ require __DIR__ . '/layout.php';
         </div>
     </div>
     
-    <?php if ($isEdit && !empty($product['product_images'])): ?>
-    <div class="form-group full">
-        <label>Current Images</label>
-        <div class="image-preview-grid">
-            <?php foreach ($product['product_images'] as $img): ?>
+    <!-- Image Upload Section -->
+    <div class="form-group full" style="margin-top: 20px;">
+        <label>Product Images</label>
+        
+        <?php if ($isEdit && !empty($product['product_images'])): 
+            $existingImgs = $product['product_images'];
+            usort($existingImgs, fn($a, $b) => ($a['sort_order'] ?? 0) - ($b['sort_order'] ?? 0));
+        ?>
+        <div class="image-preview-grid" style="margin-bottom: 12px;">
+            <?php foreach ($existingImgs as $img): ?>
             <img src="<?= e(img_url($img['url'], ['w' => 120, 'h' => 120])) ?>" class="preview-thumb" alt="">
             <?php endforeach; ?>
         </div>
-    </div>
-    <?php endif; ?>
-    
-    <!-- Product Image Upload -->
-    <div class="form-group full" style="margin-top: 1rem;">
-        <label>Upload Product Images</label>
-        <input type="file" name="product_images[]" multiple accept="image/*" class="form-input">
-        <p class="form-hint">Select one or more images. They will be uploaded and linked to this product.</p>
+        <?php endif; ?>
+
+        <div class="upload-zone">
+            <div class="upload-area" onclick="document.getElementById('product_images').click()" id="productUploadArea">
+                <div class="upload-placeholder">
+                    <span class="upload-icon">⬆️</span>
+                    <p><a href="javascript:void(0)" class="text-primary">Click to upload</a> or drag and drop an image (PNG, JPG, SVG, WebP)</p>
+                </div>
+            </div>
+            <input type="file" name="product_images[]" id="product_images" multiple accept="image/*" class="file-input-hidden">
+            <div class="upload-url-row">
+                <button type="button" class="btn-sm" onclick="document.getElementById('product_images').click()">⬆️ Choose file</button>
+                <span class="text-muted text-sm">Select multiple images for this product</span>
+            </div>
+        </div>
+        <div id="imagePreviewList" class="image-preview-grid" style="margin-top: 8px;"></div>
     </div>
     
     <div class="form-actions">
@@ -125,5 +138,35 @@ require __DIR__ . '/layout.php';
         <button type="submit" class="btn-primary"><?= $isEdit ? 'Update Product' : 'Create Product' ?></button>
     </div>
 </form>
+
+<script>
+// Drag and drop for product images
+var area = document.getElementById('productUploadArea');
+var input = document.getElementById('product_images');
+var previewList = document.getElementById('imagePreviewList');
+
+area.addEventListener('dragover', function(e) { e.preventDefault(); this.classList.add('drag-over'); });
+area.addEventListener('dragleave', function(e) { e.preventDefault(); this.classList.remove('drag-over'); });
+area.addEventListener('drop', function(e) {
+    e.preventDefault(); this.classList.remove('drag-over');
+    input.files = e.dataTransfer.files;
+    showPreviews(e.dataTransfer.files);
+});
+input.addEventListener('change', function() { showPreviews(this.files); });
+
+function showPreviews(files) {
+    previewList.innerHTML = '';
+    for (var i = 0; i < files.length; i++) {
+        var reader = new FileReader();
+        reader.onload = function(ev) {
+            var img = document.createElement('img');
+            img.src = ev.target.result;
+            img.className = 'preview-thumb';
+            previewList.appendChild(img);
+        };
+        reader.readAsDataURL(files[i]);
+    }
+}
+</script>
 
 <?php require __DIR__ . '/layout-end.php'; ?>
