@@ -449,3 +449,36 @@ ul { list-style: none; }
 
 /* ── Main Content ── */
 .main-content { flex: 1; }
+
+
+/* ── Reviews Section ── */
+.review-overview { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; }
+.review-score { display: flex; align-items: center; gap: 4px; }
+.review-score-num { font-size: 22px; font-weight: 700; }
+.review-star { color: #388e3c; font-size: 16px; }
+.review-badge { background: #e8f5e9; color: #388e3c; font-size: 11px; font-weight: 700; padding: 3px 8px; border-radius: 4px; }
+.review-count-text { font-size: 11px; color: #878787; margin-bottom: 16px; }
+.rating-bars { margin-bottom: 20px; }
+.rating-bar-row { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+.rating-bar-label { font-size: 12px; color: #212121; min-width: 30px; text-align: right; }
+.rating-bar-track { flex: 1; height: 6px; background: #f0f0f0; border-radius: 3px; overflow: hidden; }
+.rating-bar-fill { height: 100%; border-radius: 3px; }
+.rating-bar-fill.green { background: #388e3c; }
+.rating-bar-fill.yellow { background: #ff9800; }
+.rating-bar-fill.red { background: #d32f2f; }
+.rating-bar-count { font-size: 11px; color: #878787; min-width: 40px; }
+.reviews-list { border-top: 1px solid #eee; padding-top: 12px; }
+.review-item { padding: 12px 0; border-bottom: 1px solid #f5f5f5; }
+.review-item:last-child { border-bottom: none; }
+.review-header { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+.review-rating-badge { display: inline-flex; align-items: center; gap: 2px; padding: 2px 6px; border-radius: 3px; font-size: 11px; font-weight: 600; color: #fff; }
+.review-rating-badge.good { background: #388e3c; }
+.review-rating-badge.avg { background: #ff9800; }
+.review-rating-badge.bad { background: #d32f2f; }
+.review-title { font-size: 13px; font-weight: 600; color: #212121; }
+.review-text { font-size: 13px; color: #444; line-height: 1.5; margin-bottom: 8px; }
+.review-footer { display: flex; align-items: center; justify-content: space-between; }
+.review-author { font-size: 11px; color: #878787; }
+.review-helpful { display: flex; gap: 8px; }
+.helpful-btn { background: none; border: 1px solid #e0e0e0; border-radius: 4px; padding: 3px 10px; font-size: 12px; cursor: pointer; color: #555; }
+.helpful-btn:hover { background: #f5f5f5; }
