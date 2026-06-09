@@ -194,6 +194,9 @@ switch (true) {
             case $adminPath === '/homepage-layout/edit':
                 require __DIR__ . '/admin/layout-section-form.php';
                 break;
+            case $adminPath === '/icon-settings':
+                require __DIR__ . '/admin/icon-settings.php';
+                break;
             default:
                 http_response_code(404);
                 require __DIR__ . '/pages/404.php';
