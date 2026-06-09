@@ -239,6 +239,75 @@ $theme = get_theme();
     </section>
     <?php endif; ?>
 
+    <!-- Ratings & Reviews -->
+    <?php if ($rating > 0): 
+        // Generate rating breakdown (similar to React's fake reviews)
+        $ratingBreakdown = [
+            ['stars' => 5, 'pct' => 65],
+            ['stars' => 4, 'pct' => 20],
+            ['stars' => 3, 'pct' => 8],
+            ['stars' => 2, 'pct' => 4],
+            ['stars' => 1, 'pct' => 3],
+        ];
+        // Generate sample reviews based on product info
+        $sampleReviews = [
+            ['name' => 'Rahul M.', 'rating' => 5, 'date' => date('M Y', strtotime('-3 days')), 'text' => 'Excellent product! ' . ($product['title'] ?? '') . ' is exactly as described. Quality is top-notch and delivery was on time. Highly recommended for anyone looking for this.', 'helpful' => 142],
+            ['name' => 'Priya S.', 'rating' => 4, 'date' => date('M Y', strtotime('-1 week')), 'text' => 'Good value for money. The ' . ($product['brand'] ?? 'product') . ' works well. Packaging was good. Only minor issue was slightly delayed delivery but product quality makes up for it.', 'helpful' => 89],
+            ['name' => 'Amit K.', 'rating' => 5, 'date' => date('M Y', strtotime('-2 weeks')), 'text' => 'Amazing deal at this price! Got it during the sale and absolutely love it. Build quality is solid. Would buy again.', 'helpful' => 67],
+            ['name' => 'Sneha R.', 'rating' => 4, 'date' => date('M Y', strtotime('-3 weeks')), 'text' => 'Pretty good overall. Does what it says. Happy with the purchase. Flipkart delivery was smooth as always.', 'helpful' => 34],
+            ['name' => 'Vikram P.', 'rating' => 3, 'date' => date('M Y', strtotime('-1 month')), 'text' => 'Decent product for the price. Nothing extraordinary but gets the job done. Could be better packaging.', 'helpful' => 12],
+        ];
+    ?>
+    <section class="section-card">
+        <h2 class="section-heading">Ratings & Reviews</h2>
+        
+        <!-- Overall Rating -->
+        <div class="review-overview">
+            <div class="review-score">
+                <span class="review-score-num"><?= number_format($rating, 1) ?></span>
+                <span class="review-star">★</span>
+            </div>
+            <span class="review-badge">Very Good</span>
+        </div>
+        <p class="review-count-text"><?= number_format($ratingCount) ?> Ratings & <?= number_format((int)($ratingCount * 0.3)) ?> Reviews</p>
+
+        <!-- Rating Breakdown Bars -->
+        <div class="rating-bars">
+            <?php foreach ($ratingBreakdown as $bar): ?>
+            <div class="rating-bar-row">
+                <span class="rating-bar-label"><?= $bar['stars'] ?> ★</span>
+                <div class="rating-bar-track">
+                    <div class="rating-bar-fill <?= $bar['stars'] >= 4 ? 'green' : ($bar['stars'] === 3 ? 'yellow' : 'red') ?>" style="width: <?= $bar['pct'] ?>%"></div>
+                </div>
+                <span class="rating-bar-count"><?= number_format((int)($ratingCount * $bar['pct'] / 100)) ?></span>
+            </div>
+            <?php endforeach; ?>
+        </div>
+
+        <!-- Individual Reviews -->
+        <div class="reviews-list">
+            <?php foreach ($sampleReviews as $review): ?>
+            <div class="review-item">
+                <div class="review-header">
+                    <span class="review-rating-badge <?= $review['rating'] >= 4 ? 'good' : ($review['rating'] === 3 ? 'avg' : 'bad') ?>">
+                        <?= $review['rating'] ?> ★
+                    </span>
+                    <span class="review-title"><?= $review['rating'] >= 4 ? 'Great product' : ($review['rating'] === 3 ? 'Average' : 'Could be better') ?></span>
+                </div>
+                <p class="review-text"><?= e($review['text']) ?></p>
+                <div class="review-footer">
+                    <span class="review-author"><?= e($review['name']) ?>, <?= $review['date'] ?></span>
+                    <div class="review-helpful">
+                        <button type="button" class="helpful-btn">👍 <?= $review['helpful'] ?></button>
+                        <button type="button" class="helpful-btn">👎</button>
+                    </div>
+                </div>
+            </div>
+            <?php endforeach; ?>
+        </div>
+    </section>
+    <?php endif; ?>
+
     <!-- Related Products -->
     <?php if (!empty($related)): ?>
     <section class="section-card">
