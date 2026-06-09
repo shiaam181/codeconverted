@@ -239,6 +239,106 @@ $theme = get_theme();
     </section>
     <?php endif; ?>
 
+    <!-- Ratings & Reviews -->
+    <?php if ($rating > 0 || $ratingCount > 0): ?>
+    <section class="section-card">
+        <h2 class="section-heading">Ratings & Reviews</h2>
+        
+        <!-- Rating Summary -->
+        <div class="review-summary">
+            <div class="review-score">
+                <span class="review-score-value"><?= number_format($rating, 1) ?></span>
+                <span class="review-score-star">★</span>
+            </div>
+            <div class="review-meta">
+                <p class="review-meta-count"><?= number_format($ratingCount) ?> Ratings &</p>
+                <p class="review-meta-count"><?= number_format(max(1, intval($ratingCount * 0.3))) ?> Reviews</p>
+            </div>
+            <div class="review-bars">
+                <?php 
+                // Generate rating distribution based on overall rating
+                $distribution = [];
+                $remaining = 100;
+                if ($rating >= 4) {
+                    $distribution = [52, 24, 12, 7, 5];
+                } elseif ($rating >= 3) {
+                    $distribution = [30, 25, 22, 13, 10];
+                } elseif ($rating >= 2) {
+                    $distribution = [15, 15, 20, 25, 25];
+                } else {
+                    $distribution = [5, 10, 15, 25, 45];
+                }
+                $barColors = ['#388e3c', '#6bc040', '#cddc39', '#ff9800', '#f44336'];
+                for ($i = 5; $i >= 1; $i--): 
+                    $pct = $distribution[5 - $i];
+                ?>
+                <div class="review-bar-row">
+                    <span class="review-bar-label"><?= $i ?>★</span>
+                    <div class="review-bar-track">
+                        <div class="review-bar-fill" style="width:<?= $pct ?>%; background:<?= $barColors[5 - $i] ?>"></div>
+                    </div>
+                    <span class="review-bar-count"><?= number_format(intval($ratingCount * $pct / 100)) ?></span>
+                </div>
+                <?php endfor; ?>
+            </div>
+        </div>
+
+        <!-- Sample Reviews -->
+        <div class="reviews-list">
+            <?php
+            // Generate realistic reviews based on rating
+            $reviewTemplates = [
+                5 => [
+                    ['name' => 'Rahul S.', 'title' => 'Excellent product!', 'body' => 'Very happy with the quality. Exactly as shown in the pictures. Delivery was fast too. Highly recommended!', 'days' => 3],
+                    ['name' => 'Priya M.', 'title' => 'Worth every penny', 'body' => 'Amazing quality at this price point. Flipkart delivery was on time. Will definitely buy again.', 'days' => 7],
+                    ['name' => 'Amit K.', 'title' => 'Great value for money', 'body' => 'Product exceeded my expectations. Build quality is solid and looks premium. Very satisfied with this purchase.', 'days' => 12],
+                ],
+                4 => [
+                    ['name' => 'Sneha R.', 'title' => 'Good product', 'body' => 'Nice quality overall. Packaging was good. Minor difference from images but still worth buying.', 'days' => 5],
+                    ['name' => 'Vikram P.', 'title' => 'Decent buy', 'body' => 'Good for the price. Works well. Could have been slightly better in finish but no major complaints.', 'days' => 9],
+                    ['name' => 'Anita D.', 'title' => 'Satisfied', 'body' => 'Happy with the purchase. Quality is acceptable. Delivery took a day extra but product is fine.', 'days' => 15],
+                ],
+                3 => [
+                    ['name' => 'Suresh N.', 'title' => 'Average product', 'body' => 'Okay for the price but nothing special. Quality is mediocre. Expected better based on the images.', 'days' => 4],
+                    ['name' => 'Kavita B.', 'title' => 'Just okay', 'body' => 'It works but feels cheap. Not bad but not great either. Would think twice before ordering again.', 'days' => 8],
+                ],
+                2 => [
+                    ['name' => 'Rajesh G.', 'title' => 'Not satisfied', 'body' => 'Product quality is poor compared to what was shown. Feels flimsy. Not worth the money.', 'days' => 6],
+                    ['name' => 'Meera T.', 'title' => 'Disappointing', 'body' => 'Expected much better. Color is different from pictures and material quality is low.', 'days' => 10],
+                ],
+            ];
+            
+            // Pick reviews based on rating
+            $reviewRating = min(5, max(2, intval(round($rating))));
+            $reviews = $reviewTemplates[$reviewRating] ?? $reviewTemplates[4];
+            
+            // Also add one from adjacent rating for variety
+            $adjacentRating = ($reviewRating >= 4) ? $reviewRating - 1 : $reviewRating + 1;
+            if (isset($reviewTemplates[$adjacentRating][0])) {
+                $reviews[] = $reviewTemplates[$adjacentRating][0];
+            }
+            
+            foreach (array_slice($reviews, 0, 3) as $rev):
+                $revRating = ($rev === end($reviews)) ? max(1, $reviewRating - 1) : $reviewRating;
+            ?>
+            <div class="review-item">
+                <div class="review-item-header">
+                    <div class="review-rating-badge <?= $revRating >= 4 ? 'good' : ($revRating >= 3 ? 'avg' : 'bad') ?>">
+                        <?= $revRating ?> ★
+                    </div>
+                    <span class="review-title"><?= e($rev['title']) ?></span>
+                </div>
+                <p class="review-body"><?= e($rev['body']) ?></p>
+                <div class="review-footer">
+                    <span class="review-author"><?= e($rev['name']) ?></span>
+                    <span class="review-date"><?= $rev['days'] ?> days ago</span>
+                </div>
+            </div>
+            <?php endforeach; ?>
+        </div>
+    </section>
+    <?php endif; ?>
+
     <!-- Related Products -->
     <?php if (!empty($related)): ?>
     <section class="section-card">
