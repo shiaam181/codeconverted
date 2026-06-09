@@ -1,5 +1,5 @@
-# Environment variables
-.env
+# Environment variables (uncomment below if you add private secrets)
+# .env
 
 # IDE
 .idea/

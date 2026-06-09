@@ -20,13 +20,22 @@ function supabase_auth_login(string $email, string $password): array {
     curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
     curl_setopt($ch, CURLOPT_POST, true);
     curl_setopt($ch, CURLOPT_POSTFIELDS, $body);
+    curl_setopt($ch, CURLOPT_TIMEOUT, 15);
     $response = curl_exec($ch);
     $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    $curlError = curl_error($ch);
     curl_close($ch);
+    
+    if ($curlError) {
+        return ['error' => ['message' => 'Connection error: ' . $curlError]];
+    }
     
     $data = json_decode($response, true) ?: [];
     if ($httpCode >= 400) {
-        return ['error' => $data];
+        // Supabase returns error in different formats
+        $msg = $data['error_description'] ?? $data['msg'] ?? $data['message'] ?? $data['error'] ?? 'Login failed (HTTP ' . $httpCode . ')';
+        if (is_array($msg)) $msg = json_encode($msg);
+        return ['error' => ['message' => $msg]];
     }
     return $data;
 }
@@ -48,13 +57,21 @@ function supabase_auth_signup(string $email, string $password): array {
     curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
     curl_setopt($ch, CURLOPT_POST, true);
     curl_setopt($ch, CURLOPT_POSTFIELDS, $body);
+    curl_setopt($ch, CURLOPT_TIMEOUT, 15);
     $response = curl_exec($ch);
     $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    $curlError = curl_error($ch);
     curl_close($ch);
+    
+    if ($curlError) {
+        return ['error' => ['message' => 'Connection error: ' . $curlError]];
+    }
     
     $data = json_decode($response, true) ?: [];
     if ($httpCode >= 400) {
-        return ['error' => $data];
+        $msg = $data['error_description'] ?? $data['msg'] ?? $data['message'] ?? $data['error'] ?? 'Signup failed (HTTP ' . $httpCode . ')';
+        if (is_array($msg)) $msg = json_encode($msg);
+        return ['error' => ['message' => $msg]];
     }
     return $data;
 }
