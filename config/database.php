@@ -16,7 +16,8 @@ function supabase_query(string $table, array $params = [], string $method = 'GET
     if (!empty($params) && $method === 'GET') {
         $queryParts = [];
         foreach ($params as $key => $value) {
-            $queryParts[] = $key . '=' . urlencode($value);
+            // PostgREST filter values (eq.xxx, is.null, ilike.%xxx%) should not be encoded
+            $queryParts[] = $key . '=' . $value;
         }
         $url .= '?' . implode('&', $queryParts);
     }

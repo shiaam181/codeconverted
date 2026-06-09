@@ -46,8 +46,10 @@ $reference = create_upi_reference();
 $paymentUrl = null;
 if ($paymentMethod === 'upi') {
     $theme = get_theme();
-    $upiId = clean_upi_id($tenant['upi_id'] ?? $theme['upi_id'] ?? '');
-    $payeeName = trim($tenant['upi_payee_name'] ?? $theme['upi_payee_name'] ?? DEFAULT_SITE_NAME);
+    $tenantUpiId = $tenant ? ($tenant['upi_id'] ?? null) : null;
+    $tenantPayeeName = $tenant ? ($tenant['upi_payee_name'] ?? null) : null;
+    $upiId = clean_upi_id($tenantUpiId ?? $theme['upi_id'] ?? '');
+    $payeeName = trim($tenantPayeeName ?? $theme['upi_payee_name'] ?? DEFAULT_SITE_NAME);
     
     if ($upiId && is_valid_upi_id($upiId)) {
         $paymentUrl = build_app_upi_url($upiApp, $upiId, $payeeName, $total, $reference);

@@ -36,21 +36,17 @@ require __DIR__ . '/../templates/header.php';
     <?php else: ?>
         <!-- Dynamic layout from database -->
         <?php foreach ($layout as $section): ?>
-            <?php switch ($section['section_type']):
-                case 'category_strip': ?>
-                    <?php include __DIR__ . '/../templates/components/category-strip.php'; ?>
-                    <?php break; ?>
-                <?php case 'banner_carousel': ?>
-                    <?php 
-                    $config = is_array($section['config']) ? $section['config'] : json_decode($section['config'] ?? '{}', true);
-                    $position = $config['position'] ?? 'hero';
-                    include __DIR__ . '/../templates/components/banner-carousel.php'; 
-                    ?>
-                    <?php break; ?>
-                <?php default: ?>
-                    <!-- Unknown section type: <?= e($section['section_type']) ?> -->
-                    <?php break; ?>
-            <?php endswitch; ?>
+            <?php if ($section['section_type'] === 'category_strip'): ?>
+                <?php include __DIR__ . '/../templates/components/category-strip.php'; ?>
+            <?php elseif ($section['section_type'] === 'banner_carousel'): ?>
+                <?php 
+                $config = is_array($section['config']) ? $section['config'] : json_decode($section['config'] ?? '{}', true);
+                $position = $config['position'] ?? 'hero';
+                include __DIR__ . '/../templates/components/banner-carousel.php'; 
+                ?>
+            <?php else: ?>
+                <!-- Unknown section type: <?= e($section['section_type']) ?> -->
+            <?php endif; ?>
         <?php endforeach; ?>
         
         <!-- Product grid always shown at the bottom -->

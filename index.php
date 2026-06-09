@@ -13,6 +13,7 @@ require_once __DIR__ . '/config/database.php';
 require_once __DIR__ . '/includes/helpers.php';
 require_once __DIR__ . '/includes/cart.php';
 require_once __DIR__ . '/includes/models.php';
+require_once __DIR__ . '/includes/admin-helpers.php';
 
 // Handle cart actions (POST requests)
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -58,6 +59,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             require __DIR__ . '/pages/place-order.php';
             exit;
             break;
+            
+        case 'mark_paid':
+            $markOrderId = $_POST['order_id'] ?? '';
+            if ($markOrderId) {
+                $ref = strtoupper(substr($markOrderId, 0, 8));
+                supabase_rpc('mark_order_payment_submitted', [
+                    '_order_id' => $markOrderId,
+                    '_payment_reference' => $ref,
+                ]);
+            }
+            $tenant = $_SESSION['current_tenant'] ?? null;
+            $orderLink = $tenant ? "/t/{$tenant['slug']}/order/{$markOrderId}" : "/order/{$markOrderId}";
+            redirect($orderLink);
+            break;
     }
 }
 
@@ -96,6 +111,90 @@ switch (true) {
     case preg_match('#^/order/([^/]+)$#', $path, $matches) === 1:
         $orderId = $matches[1];
         require __DIR__ . '/pages/order.php';
+        break;
+        
+    case preg_match('#^/admin(.*)$#', $path, $matches) === 1:
+        $adminPath = $matches[1] ?: '/';
+        $adminPath = rtrim($adminPath, '/') ?: '/';
+        
+        // Login doesn't require auth
+        if ($adminPath === '/login') {
+            require __DIR__ . '/admin/login.php';
+            break;
+        }
+        
+        // Logout
+        if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['admin_action'] ?? '') === 'logout') {
+            unset($_SESSION['admin_token'], $_SESSION['admin_user_id'], $_SESSION['admin_username']);
+            redirect('/admin/login');
+        }
+        
+        // All other admin pages require auth
+        require_admin();
+        
+        switch (true) {
+            case $adminPath === '/':
+                require __DIR__ . '/admin/dashboard.php';
+                break;
+            case $adminPath === '/products':
+                require __DIR__ . '/admin/products.php';
+                break;
+            case $adminPath === '/products/new':
+            case $adminPath === '/products/edit':
+                require __DIR__ . '/admin/product-form.php';
+                break;
+            case $adminPath === '/orders':
+                require __DIR__ . '/admin/orders.php';
+                break;
+            case $adminPath === '/banners':
+                require __DIR__ . '/admin/banners.php';
+                break;
+            case $adminPath === '/banners/new':
+            case $adminPath === '/banners/edit':
+                require __DIR__ . '/admin/banner-form.php';
+                break;
+            case $adminPath === '/categories':
+                require __DIR__ . '/admin/categories.php';
+                break;
+            case $adminPath === '/categories/new':
+            case $adminPath === '/categories/edit':
+                require __DIR__ . '/admin/category-form.php';
+                break;
+            case $adminPath === '/theme':
+                require __DIR__ . '/admin/theme.php';
+                break;
+            case $adminPath === '/upi':
+                require __DIR__ . '/admin/upi.php';
+                break;
+            case $adminPath === '/upi/new':
+            case $adminPath === '/upi/edit':
+                require __DIR__ . '/admin/upi-form.php';
+                break;
+            case $adminPath === '/tenants':
+                require __DIR__ . '/admin/tenants.php';
+                break;
+            case $adminPath === '/tenants/new':
+                require __DIR__ . '/admin/tenant-form.php';
+                break;
+            case $adminPath === '/payment-offers':
+                require __DIR__ . '/admin/payment-offers.php';
+                break;
+            case $adminPath === '/payment-offers/new':
+            case $adminPath === '/payment-offers/edit':
+                require __DIR__ . '/admin/offer-form.php';
+                break;
+            case $adminPath === '/homepage-layout':
+                require __DIR__ . '/admin/homepage-layout.php';
+                break;
+            case $adminPath === '/homepage-layout/new':
+            case $adminPath === '/homepage-layout/edit':
+                require __DIR__ . '/admin/layout-section-form.php';
+                break;
+            default:
+                http_response_code(404);
+                require __DIR__ . '/pages/404.php';
+                break;
+        }
         break;
         
     case preg_match('#^/t/([^/]+)(.*)$#', $path, $matches) === 1:

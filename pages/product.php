@@ -244,9 +244,14 @@ $theme = get_theme();
     <section class="section-card">
         <h2 class="section-heading">Related Products</h2>
         <div class="product-grid">
-            <?php foreach ($related as $product): ?>
+            <?php foreach ($related as $relatedProduct): 
+                $product = $relatedProduct;
+            ?>
                 <?php include __DIR__ . '/../templates/components/product-card.php'; ?>
-            <?php endforeach; ?>
+            <?php endforeach; 
+            // Restore original product variable for the footer form below
+            $product = get_product_by_slug($slug, $tenantId);
+            ?>
         </div>
     </section>
     <?php endif; ?>
