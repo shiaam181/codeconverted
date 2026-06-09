@@ -291,3 +291,45 @@ function admin_icon(string $name): string {
     ];
     return $icons[$name] ?? '•';
 }
+
+
+/**
+ * Get list of media files from Supabase Storage bucket "media"
+ */
+function get_media_files(): array {
+    $url = SUPABASE_URL . '/storage/v1/object/list/media';
+    $headers = [
+        'apikey: ' . SUPABASE_KEY,
+        'Authorization: Bearer ' . get_auth_token(),
+        'Content-Type: application/json',
+    ];
+    
+    $folders = ['general', 'products', 'banners', 'categories', 'branding', 'upi', 'tabs'];
+    $allFiles = [];
+    
+    foreach ($folders as $folder) {
+        $ch = curl_init();
+        curl_setopt($ch, CURLOPT_URL, $url);
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+        curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
+        curl_setopt($ch, CURLOPT_POST, true);
+        curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode(['prefix' => $folder . '/', 'limit' => 100]));
+        curl_setopt($ch, CURLOPT_TIMEOUT, 10);
+        $response = curl_exec($ch);
+        $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        curl_close($ch);
+        
+        if ($httpCode < 400 && $response) {
+            $files = json_decode($response, true);
+            if (is_array($files)) {
+                foreach ($files as $f) {
+                    if (!empty($f['name']) && !empty($f['id'])) {
+                        $allFiles[] = ['name' => $folder . '/' . $f['name'], 'id' => $f['id']];
+                    }
+                }
+            }
+        }
+    }
+    
+    return $allFiles;
+}

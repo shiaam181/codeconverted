@@ -13,6 +13,7 @@ $adminNav = [
     ['url' => '/admin/payment-offers', 'label' => 'Payment Offers', 'icon' => 'tag'],
     ['url' => '/admin/upi', 'label' => 'UPI Apps', 'icon' => 'smartphone'],
     ['url' => '/admin/theme', 'label' => 'Theme & Branding', 'icon' => 'palette'],
+    ['url' => '/admin/media', 'label' => 'Media Manager', 'icon' => 'image'],
     ['url' => '/admin/orders', 'label' => 'Orders', 'icon' => 'cart'],
 ];
 
