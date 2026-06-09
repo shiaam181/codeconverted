@@ -1,22 +1,20 @@
 <?php
 /**
  * Admin Categories Management
+ * Features: New category, Bulk upload (images → categories), Edit, Delete
  */
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $action = $_POST['cat_action'] ?? '';
     
     if ($action === 'create' || $action === 'update') {
+        // Handle image file upload
         $imageUrl = trim($_POST['image_url'] ?? '') ?: null;
-        
-        // Handle file upload for category image - overrides URL if present
-        if (!empty($_FILES['category_image_file']['tmp_name']) && $_FILES['category_image_file']['error'] === UPLOAD_ERR_OK) {
-            $uploadedUrl = upload_to_supabase_storage($_FILES['category_image_file'], 'categories');
-            if ($uploadedUrl) {
-                $imageUrl = $uploadedUrl;
-            }
+        if (!empty($_FILES['image_file']['tmp_name'])) {
+            $uploaded = upload_to_supabase_storage($_FILES['image_file'], 'categories');
+            if ($uploaded) $imageUrl = $uploaded;
         }
-        
+
         $payload = [
             'name' => trim($_POST['name'] ?? ''),
             'slug' => trim($_POST['slug'] ?? '') ?: slugify($_POST['name'] ?? ''),
@@ -44,40 +42,40 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         flash('success', 'Category deleted');
         redirect('/admin/categories');
     }
-    
+
     if ($action === 'bulk_upload') {
-        $uploadedCount = 0;
-        if (!empty($_FILES['category_images']['name'][0])) {
-            $fileCount = count($_FILES['category_images']['name']);
-            for ($i = 0; $i < $fileCount; $i++) {
-                if ($_FILES['category_images']['error'][$i] !== UPLOAD_ERR_OK) continue;
-                
+        $count = 0;
+        if (!empty($_FILES['bulk_images']['tmp_name'])) {
+            $maxOrder = 0;
+            $existing = get_admin_categories();
+            foreach ($existing as $c) $maxOrder = max($maxOrder, $c['sort_order'] ?? 0);
+            
+            foreach ($_FILES['bulk_images']['tmp_name'] as $i => $tmp) {
+                if (!$tmp || $_FILES['bulk_images']['error'][$i] !== UPLOAD_ERR_OK) continue;
                 $file = [
-                    'name' => $_FILES['category_images']['name'][$i],
-                    'type' => $_FILES['category_images']['type'][$i],
-                    'tmp_name' => $_FILES['category_images']['tmp_name'][$i],
-                    'error' => $_FILES['category_images']['error'][$i],
-                    'size' => $_FILES['category_images']['size'][$i],
+                    'name' => $_FILES['bulk_images']['name'][$i],
+                    'tmp_name' => $tmp,
+                    'type' => $_FILES['bulk_images']['type'][$i],
                 ];
+                $imgUrl = upload_to_supabase_storage($file, 'categories');
+                if (!$imgUrl) continue;
                 
-                $imageUrl = upload_to_supabase_storage($file, 'categories');
-                if ($imageUrl) {
-                    $name = pathinfo($file['name'], PATHINFO_FILENAME);
-                    $name = str_replace(['-', '_'], ' ', $name);
-                    $name = ucwords($name);
-                    
-                    supabase_query('categories', [], 'POST', [
-                        'name' => $name,
-                        'slug' => slugify($name),
-                        'image_url' => $imageUrl,
-                        'sort_order' => 0,
-                        'is_active' => true,
-                    ]);
-                    $uploadedCount++;
-                }
+                $name = pathinfo($_FILES['bulk_images']['name'][$i], PATHINFO_FILENAME);
+                $name = str_replace(['-', '_'], ' ', $name);
+                $name = ucfirst(trim($name)) ?: 'Category';
+                $maxOrder++;
+                
+                supabase_query('categories', [], 'POST', [
+                    'name' => $name,
+                    'slug' => slugify($name) . '-' . $maxOrder,
+                    'image_url' => $imgUrl,
+                    'sort_order' => $maxOrder,
+                    'is_active' => true,
+                ]);
+                $count++;
             }
         }
-        flash('success', "{$uploadedCount} categories created from uploaded images");
+        flash('success', "Created {$count} categories from uploaded images");
         redirect('/admin/categories');
     }
 }
@@ -98,22 +96,18 @@ require __DIR__ . '/layout.php';
     <div class="section-header">
         <div>
             <h2>Categories</h2>
-            <p class="text-muted">Organize products into browsable categories.</p>
+            <p class="text-muted">Organize your products into browsable categories.</p>
         </div>
-        <a href="/admin/categories/new" class="btn-primary">+ New category</a>
-    </div>
-</div>
-
-<!-- Bulk Upload Form -->
-<div class="admin-section">
-    <div class="setting-card">
-        <h4>Bulk Upload Categories</h4>
-        <p class="text-muted">Upload multiple images to create categories automatically (filename becomes category name).</p>
-        <form method="POST" action="/admin/categories" enctype="multipart/form-data" class="setting-form" style="margin-top: 0.5rem;">
-            <input type="hidden" name="cat_action" value="bulk_upload">
-            <input type="file" name="category_images[]" multiple accept="image/*" class="form-input">
-            <button type="submit" class="btn-primary" style="margin-top: 0.5rem;">Upload & Create</button>
-        </form>
+        <div class="btn-group">
+            <form method="POST" action="/admin/categories" enctype="multipart/form-data" style="display:inline">
+                <input type="hidden" name="cat_action" value="bulk_upload">
+                <label class="btn-outline" style="cursor:pointer">
+                    ⬆️ Bulk upload
+                    <input type="file" name="bulk_images[]" multiple accept="image/*,image/svg+xml,.svg" class="file-input-hidden" onchange="this.form.submit()">
+                </label>
+            </form>
+            <a href="/admin/categories/new" class="btn-primary">+ New category</a>
+        </div>
     </div>
 </div>
 
@@ -135,7 +129,7 @@ require __DIR__ . '/layout.php';
         <tbody>
             <?php foreach ($categories as $c): ?>
             <tr>
-                <td><?= $c['image_url'] ? '<img src="' . e($c['image_url']) . '" class="table-thumb" alt="">' : '—' ?></td>
+                <td><?= !empty($c['image_url']) ? '<img src="' . e($c['image_url']) . '" class="table-thumb" alt="">' : '—' ?></td>
                 <td class="td-title"><?= e($c['name']) ?></td>
                 <td class="text-muted"><?= e($c['slug']) ?></td>
                 <td><?= $c['sort_order'] ?></td>

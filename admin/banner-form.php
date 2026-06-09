@@ -1,6 +1,6 @@
 <?php
 /**
- * Admin Banner Create/Edit Form
+ * Admin Banner Create/Edit Form with file upload
  */
 
 $bannerId = get_param('id');
@@ -35,18 +35,26 @@ require __DIR__ . '/layout.php';
             <input type="text" name="title" value="<?= e($banner['title'] ?? '') ?>" class="form-input">
         </div>
         
+        <!-- Image Upload -->
         <div class="form-group full">
-            <label>Image URL</label>
-            <input type="url" name="image_url" value="<?= e($banner['image_url'] ?? '') ?>" class="form-input" placeholder="https://...">
-            <?php if ($isEdit && !empty($banner['image_url'])): ?>
-            <img src="<?= e($banner['image_url']) ?>" class="preview-banner" alt="">
-            <?php endif; ?>
-        </div>
-        
-        <div class="form-group full">
-            <label>Or Upload Banner Image</label>
-            <input type="file" name="banner_image_file" accept="image/*" class="form-input">
-            <p class="form-hint">If a file is uploaded, it will be used instead of the URL above.</p>
+            <label>Image</label>
+            <div class="upload-zone">
+                <div class="upload-area" onclick="document.getElementById('image_file').click()" id="bannerUploadArea">
+                    <?php if ($isEdit && !empty($banner['image_url'])): ?>
+                    <img src="<?= e($banner['image_url']) ?>" class="upload-preview" alt="" style="max-height:140px;">
+                    <?php else: ?>
+                    <div class="upload-placeholder">
+                        <span class="upload-icon">⬆️</span>
+                        <p><a href="javascript:void(0)" class="text-primary">Click to upload</a> or drag and drop an image (PNG, JPG, SVG, WebP)</p>
+                    </div>
+                    <?php endif; ?>
+                </div>
+                <input type="file" name="image_file" id="image_file" accept="image/*" class="file-input-hidden">
+                <div class="upload-url-row">
+                    <button type="button" class="btn-sm" onclick="document.getElementById('image_file').click()">⬆️ Choose file</button>
+                    <input type="text" name="image_url" value="<?= e($banner['image_url'] ?? '') ?>" class="form-input" placeholder="...or paste image URL">
+                </div>
+            </div>
         </div>
         
         <div class="form-group full">
@@ -64,7 +72,7 @@ require __DIR__ . '/layout.php';
         </div>
         
         <div class="form-group">
-            <label>Sort Order</label>
+            <label>Order</label>
             <input type="number" name="sort_order" value="<?= $banner['sort_order'] ?? 0 ?>" class="form-input">
         </div>
         
@@ -81,5 +89,26 @@ require __DIR__ . '/layout.php';
         <button type="submit" class="btn-primary"><?= $isEdit ? 'Update Banner' : 'Create Banner' ?></button>
     </div>
 </form>
+
+<script>
+var area = document.getElementById('bannerUploadArea');
+var input = document.getElementById('image_file');
+area.addEventListener('dragover', function(e) { e.preventDefault(); this.classList.add('drag-over'); });
+area.addEventListener('dragleave', function(e) { e.preventDefault(); this.classList.remove('drag-over'); });
+area.addEventListener('drop', function(e) {
+    e.preventDefault(); this.classList.remove('drag-over');
+    input.files = e.dataTransfer.files;
+    var reader = new FileReader();
+    reader.onload = function(ev) { area.innerHTML = '<img src="' + ev.target.result + '" class="upload-preview" style="max-height:140px;" alt="">'; };
+    reader.readAsDataURL(e.dataTransfer.files[0]);
+});
+input.addEventListener('change', function() {
+    if (this.files[0]) {
+        var reader = new FileReader();
+        reader.onload = function(ev) { area.innerHTML = '<img src="' + ev.target.result + '" class="upload-preview" style="max-height:140px;" alt="">'; };
+        reader.readAsDataURL(this.files[0]);
+    }
+});
+</script>
 
 <?php require __DIR__ . '/layout-end.php'; ?>
