@@ -1,6 +1,6 @@
 <?php
 /**
- * Admin Payment Offer Create/Edit
+ * Admin Payment Offer Create/Edit with logo upload
  */
 $offerId = get_param('id');
 $offer = null;
@@ -22,13 +22,35 @@ require __DIR__ . '/layout.php';
     </div>
 </div>
 
-<form method="POST" action="/admin/payment-offers" class="admin-form">
+<form method="POST" action="/admin/payment-offers" enctype="multipart/form-data" class="admin-form">
     <input type="hidden" name="offer_action" value="<?= $isEdit ? 'update' : 'create' ?>">
     <?php if ($isEdit): ?>
     <input type="hidden" name="offer_id" value="<?= e($offer['id']) ?>">
     <?php endif; ?>
     
     <div class="form-grid">
+        <!-- Logo Upload -->
+        <div class="form-group full">
+            <label>Logo / icon</label>
+            <div class="upload-zone">
+                <div class="upload-area" onclick="document.getElementById('logo_file').click()" id="logoUploadArea">
+                    <?php if ($isEdit && !empty($offer['logo_url'])): ?>
+                    <img src="<?= e($offer['logo_url']) ?>" class="upload-preview-sm" alt="">
+                    <?php else: ?>
+                    <div class="upload-placeholder">
+                        <span class="upload-icon">⬆️</span>
+                        <p><a href="javascript:void(0)" class="text-primary">Click to upload</a> or drag and drop an image (PNG, JPG, SVG, WebP)</p>
+                    </div>
+                    <?php endif; ?>
+                </div>
+                <input type="file" name="logo_file" id="logo_file" accept="image/*" class="file-input-hidden">
+                <div class="upload-url-row">
+                    <button type="button" class="btn-sm" onclick="document.getElementById('logo_file').click()">⬆️ Choose file</button>
+                    <input type="text" name="logo_url" value="<?= e($offer['logo_url'] ?? '') ?>" class="form-input" placeholder="...or paste image URL">
+                </div>
+            </div>
+        </div>
+
         <div class="form-group full">
             <label>Title *</label>
             <input type="text" name="title" required value="<?= e($offer['title'] ?? '') ?>" class="form-input" placeholder="Get ₹50 cashback">
@@ -38,20 +60,16 @@ require __DIR__ . '/layout.php';
             <textarea name="description" rows="3" class="form-textarea"><?= e($offer['description'] ?? '') ?></textarea>
         </div>
         <div class="form-group">
-            <label>Coupon Code</label>
+            <label>Coupon code (optional)</label>
             <input type="text" name="code" value="<?= e($offer['code'] ?? '') ?>" class="form-input" placeholder="FLAT50">
         </div>
         <div class="form-group">
-            <label>Brand/Tab</label>
+            <label>Tab / brand</label>
             <select name="brand" class="form-select">
                 <?php foreach ($brands as $val => $label): ?>
                 <option value="<?= $val ?>" <?= ($offer['brand'] ?? 'all') === $val ? 'selected' : '' ?>><?= e($label) ?></option>
                 <?php endforeach; ?>
             </select>
-        </div>
-        <div class="form-group full">
-            <label>Logo URL</label>
-            <input type="url" name="logo_url" value="<?= e($offer['logo_url'] ?? '') ?>" class="form-input" placeholder="https://...">
         </div>
         <div class="form-group">
             <label>Sort Order</label>
@@ -70,5 +88,26 @@ require __DIR__ . '/layout.php';
         <button type="submit" class="btn-primary"><?= $isEdit ? 'Update' : 'Create' ?></button>
     </div>
 </form>
+
+<script>
+var area = document.getElementById('logoUploadArea');
+var input = document.getElementById('logo_file');
+area.addEventListener('dragover', function(e) { e.preventDefault(); this.classList.add('drag-over'); });
+area.addEventListener('dragleave', function(e) { e.preventDefault(); this.classList.remove('drag-over'); });
+area.addEventListener('drop', function(e) {
+    e.preventDefault(); this.classList.remove('drag-over');
+    input.files = e.dataTransfer.files;
+    var reader = new FileReader();
+    reader.onload = function(ev) { area.innerHTML = '<img src="' + ev.target.result + '" class="upload-preview-sm" alt="">'; };
+    reader.readAsDataURL(e.dataTransfer.files[0]);
+});
+input.addEventListener('change', function() {
+    if (this.files[0]) {
+        var reader = new FileReader();
+        reader.onload = function(ev) { area.innerHTML = '<img src="' + ev.target.result + '" class="upload-preview-sm" alt="">'; };
+        reader.readAsDataURL(this.files[0]);
+    }
+});
+</script>
 
 <?php require __DIR__ . '/layout-end.php'; ?>
