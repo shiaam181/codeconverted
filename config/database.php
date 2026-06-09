@@ -42,7 +42,8 @@ function get_auth_token(): string {
 function supabase_query(string $table, array $params = [], string $method = 'GET', $body = null): array {
     $url = SUPABASE_URL . '/rest/v1/' . $table;
     
-    if (!empty($params) && $method === 'GET') {
+    // Add query params to URL for ALL methods (GET, PATCH, DELETE all need filters)
+    if (!empty($params)) {
         $queryParts = [];
         foreach ($params as $key => $value) {
             // PostgREST filter values (eq.xxx, is.null, ilike.%xxx%) should not be encoded
