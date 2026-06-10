@@ -39,9 +39,9 @@ require __DIR__ . '/../templates/header.php';
     <div class="category-header">
         <div>
             <h1 class="category-title"><?= e($category['name']) ?></h1>
-            <p class="category-count"><?= count($products) ?> products</p>
         </div>
         <form action="<?= e($categoryLink) ?>" method="GET" class="sort-form">
+            <label class="sort-label">Filters</label>
             <select name="sort" onchange="this.form.submit()" class="sort-select">
                 <option value="popular" <?= $sort === 'popular' ? 'selected' : '' ?>>Popularity</option>
                 <option value="price-asc" <?= $sort === 'price-asc' ? 'selected' : '' ?>>Price: Low to High</option>
