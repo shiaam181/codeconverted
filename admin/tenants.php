@@ -2,6 +2,7 @@
 /**
  * Admin Customer Stores (Tenants) Management
  * Features: Primary domain, Create store, Toggle, Delete, Reset password, Set expiry, Renew
+ * Product seeding from master catalog on creation
  */
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -26,11 +27,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             redirect('/admin/tenants');
         }
         
+        // Check if slug already exists
+        $existing = supabase_query('tenants', ['slug' => 'eq.' . $slug, 'select' => 'id']);
+        if (!empty($existing) && !isset($existing['error'])) {
+            flash('error', 'Slug already in use');
+            redirect('/admin/tenants');
+        }
+        
         $payload = [
             'name' => $name,
             'slug' => $slug,
             'upi_id' => $upiId,
             'is_active' => true,
+            'show_default_products' => true,
         ];
         
         $expiryDays = $_POST['expiry_days'] ?? '';
@@ -38,17 +47,43 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $payload['expires_at'] = date('c', strtotime("+{$expiryDays} days"));
         }
         
-        supabase_query('tenants', [], 'POST', $payload);
+        // Create tenant admin account if email/password provided
+        $adminEmail = trim($_POST['admin_email'] ?? '');
+        $adminPassword = $_POST['admin_password'] ?? '';
+        $ownerId = null;
         
-        // Create tenant admin account if username/password provided
-        $username = trim($_POST['username'] ?? '');
-        $password = $_POST['password'] ?? '';
-        if ($username && strlen($password) >= 6) {
-            $email = strtolower($username) . '@admin.local';
-            supabase_auth_signup($email, $password);
+        if ($adminEmail && strlen($adminPassword) >= 6) {
+            // Use synthetic email format: username.slug@tenant.local (matching React version)
+            $username = explode('@', $adminEmail)[0];
+            $tenantEmail = strtolower($username) . '.' . strtolower($slug) . '@tenant.local';
+            $authResult = supabase_auth_signup($tenantEmail, $adminPassword);
+            if (!isset($authResult['error']) && !empty($authResult['id'])) {
+                $ownerId = $authResult['id'];
+            } elseif (!isset($authResult['error']) && !empty($authResult['user']['id'])) {
+                $ownerId = $authResult['user']['id'];
+            }
+            if ($ownerId) {
+                $payload['owner_user_id'] = $ownerId;
+            }
         }
         
-        flash('success', "Store \"{$name}\" created");
+        $tenantResult = supabase_query('tenants', [], 'POST', $payload);
+        
+        if (!empty($tenantResult) && !isset($tenantResult['error'])) {
+            $newTenant = is_array($tenantResult[0] ?? null) ? $tenantResult[0] : $tenantResult;
+            $newTenantId = $newTenant['id'] ?? null;
+            
+            // Seed products from master catalog (copy all master products to this tenant)
+            $copySeed = isset($_POST['copy_seed']) ? true : true; // default: always seed
+            if ($newTenantId && $copySeed) {
+                seed_tenant_products($newTenantId, $slug);
+            }
+            
+            flash('success', "Store \"{$name}\" created" . ($ownerId ? " with admin account" : ""));
+        } else {
+            // If tenant creation failed and we created a user, note it
+            flash('error', 'Failed to create store. ' . ($tenantResult['message'] ?? ''));
+        }
         redirect('/admin/tenants');
     }
     
@@ -62,7 +97,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
     
     if ($action === 'delete' && !empty($_POST['tenant_id'])) {
-        supabase_query('tenants', ['id' => 'eq.' . $_POST['tenant_id']], 'DELETE');
+        $tenantId = $_POST['tenant_id'];
+        // Delete tenant products and images first
+        $tenantProducts = supabase_query('products', ['tenant_id' => 'eq.' . $tenantId, 'select' => 'id']);
+        if (is_array($tenantProducts) && !isset($tenantProducts['error'])) {
+            foreach ($tenantProducts as $p) {
+                supabase_query('product_images', ['product_id' => 'eq.' . $p['id']], 'DELETE');
+            }
+            supabase_query('products', ['tenant_id' => 'eq.' . $tenantId], 'DELETE');
+        }
+        // Delete orders for this tenant
+        supabase_query('orders', ['tenant_id' => 'eq.' . $tenantId], 'DELETE');
+        // Delete the tenant
+        supabase_query('tenants', ['id' => 'eq.' . $tenantId], 'DELETE');
         flash('success', 'Store deleted');
         redirect('/admin/tenants');
     }
@@ -71,7 +118,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $expiryDays = $_POST['expiry_days'] ?? '';
         $expiresAt = null;
         if ($expiryDays && is_numeric($expiryDays)) {
-            $expiresAt = date('c', strtotime("+{$expiryDays} days"));
+            // Extend from later of (now, current expiry) so renewal adds time
+            $tenantData = supabase_query('tenants', ['id' => 'eq.' . $_POST['tenant_id'], 'select' => 'expires_at']);
+            $currentExpiry = (!empty($tenantData) && !isset($tenantData['error'])) ? ($tenantData[0]['expires_at'] ?? null) : null;
+            $fromTime = time();
+            if ($currentExpiry && strtotime($currentExpiry) > $fromTime) {
+                $fromTime = strtotime($currentExpiry);
+            }
+            $expiresAt = date('c', $fromTime + ((int)$expiryDays * 86400));
         }
         supabase_query('tenants', ['id' => 'eq.' . $_POST['tenant_id']], 'PATCH', [
             'expires_at' => $expiresAt,
@@ -86,9 +140,26 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             flash('error', 'Password must be at least 6 characters');
             redirect('/admin/tenants');
         }
-        // Note: In PHP, direct password reset requires Supabase Admin API (service_role key).
-        // With anon key, we can only update via auth endpoints.
-        flash('success', 'Password reset requires service_role key. Use Supabase Dashboard to reset passwords.');
+        // Get the tenant's owner_user_id
+        $tenantData = supabase_query('tenants', ['id' => 'eq.' . $_POST['tenant_id'], 'select' => 'owner_user_id']);
+        $ownerUserId = (!empty($tenantData) && !isset($tenantData['error'])) ? ($tenantData[0]['owner_user_id'] ?? null) : null;
+        
+        if ($ownerUserId) {
+            // Use Supabase Admin API to update password (requires service_role key)
+            $serviceKey = getenv('SUPABASE_SERVICE_ROLE_KEY');
+            if ($serviceKey) {
+                $result = supabase_admin_update_user($ownerUserId, ['password' => $newPassword]);
+                if (!isset($result['error'])) {
+                    flash('success', 'Password updated');
+                } else {
+                    flash('error', 'Failed to reset password: ' . ($result['message'] ?? 'Unknown error'));
+                }
+            } else {
+                flash('error', 'Password reset requires SUPABASE_SERVICE_ROLE_KEY in .env');
+            }
+        } else {
+            flash('error', 'Tenant has no admin account. Create one first.');
+        }
         redirect('/admin/tenants');
     }
 }
@@ -135,7 +206,15 @@ require __DIR__ . '/layout.php';
 <?php else: ?>
 <div class="tenant-grid">
     <?php foreach ($tenants as $t): 
-        $base = $primaryDomain ? "https://{$primaryDomain}" : '';
+        // URL logic: if primary_domain is set, use it. Otherwise use the current server origin.
+        // This ensures stores work locally without pointing to an external hosted domain.
+        if ($primaryDomain) {
+            $base = "https://{$primaryDomain}";
+        } else {
+            $scheme = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
+            $host = $_SERVER['HTTP_HOST'] ?? 'localhost:8000';
+            $base = "{$scheme}://{$host}";
+        }
         $storeUrl = "{$base}/t/{$t['slug']}";
         $adminUrl = "{$base}/t/{$t['slug']}/admin/login";
         $isExpired = !empty($t['expires_at']) && strtotime($t['expires_at']) <= time();
