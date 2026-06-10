@@ -164,13 +164,15 @@ input,select,textarea{font:inherit}
 .s-item .info-col .prices .d{font-size:13px;font-weight:600;color:#388e3c}
 .s-item .info-col .prices .o{font-size:12px;color:#878787;text-decoration:line-through}
 .s-item .info-col .prices .n{font-size:15px;font-weight:700}
-.donate-card{display:flex;align-items:flex-start;gap:12px}
-.donate-card .donate-left{flex:1}
-.donate-card .dt{font-size:14px;font-weight:600}
-.donate-card .ds{font-size:12px;color:#878787;margin-top:2px}
-.donate-card .btns{display:flex;gap:8px;margin-top:10px}
-.donate-card .btns button{padding:7px 18px;border:1px solid #c2c2c2;border-radius:24px;background:#fff;font-size:13px}
-.donate-card .donate-img{width:64px;height:64px;border-radius:8px;object-fit:cover;flex-shrink:0}
+.donate-card{padding:0!important;overflow:hidden}
+.donate-top{display:flex;align-items:center;padding:14px 16px;gap:12px}
+.donate-top .donate-left{flex:1}
+.donate-top .dt{font-size:14px;font-weight:600;color:#212121}
+.donate-top .ds{font-size:12px;color:#878787;margin-top:2px}
+.donate-top .donate-img{width:64px;height:64px;border-radius:10px 0 0 10px;object-fit:cover;flex-shrink:0;margin-right:-16px}
+.donate-divider{height:1px;background:#eee;margin:0}
+.donate-btns{display:flex;gap:10px;padding:12px 16px}
+.donate-btns button{flex:1;padding:8px 0;border:1px solid #e0e0e0;border-radius:20px;background:#fff;font-size:13px;font-weight:500;color:#212121;cursor:pointer}
 .price-card .row{display:flex;justify-content:space-between;font-size:13px;margin-bottom:10px}
 .price-card .total{display:flex;justify-content:space-between;font-size:15px;font-weight:700;border-top:1px solid #eee;padding-top:10px;margin-top:4px}
 .price-card .save-bar{background:#e8f5e9;color:#1b5e20;font-size:13px;text-align:center;padding:10px;border-radius:6px;margin-top:12px}
@@ -353,14 +355,22 @@ input,select,textarea{font:inherit}
         <?php endforeach; ?>
     </div>
     <div class="s-card donate-card">
-        <div class="donate-left">
-            <p class="dt">Donate to <?= e($siteName) ?> Foundation</p>
-            <p class="ds">Support transformative social work in India</p>
-            <div class="btns"><button type="button">₹10</button><button type="button">₹20</button><button type="button">₹50</button><button type="button">₹100</button></div>
+        <div class="donate-top">
+            <div class="donate-left">
+                <p class="dt">Donate to <?= e($siteName) ?> Foundation</p>
+                <p class="ds">Support transformative social work in India</p>
+            </div>
+            <?php if (!empty($theme['donation_image_url'])): ?>
+            <img src="<?= e($theme['donation_image_url']) ?>" alt="" class="donate-img">
+            <?php endif; ?>
         </div>
-        <?php if (!empty($theme['donation_image_url'])): ?>
-        <img src="<?= e($theme['donation_image_url']) ?>" alt="" class="donate-img">
-        <?php endif; ?>
+        <div class="donate-divider"></div>
+        <div class="donate-btns">
+            <button type="button">₹10</button>
+            <button type="button">₹20</button>
+            <button type="button">₹50</button>
+            <button type="button">₹100</button>
+        </div>
     </div>
     <div class="s-card price-card">
         <div class="row"><span>MRP</span><span>₹<?= number_format($mrpTotal,0,'.',',') ?></span></div>

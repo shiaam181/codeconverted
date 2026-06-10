@@ -212,13 +212,16 @@ function get_products_by_category(string $categorySlug, string $sort = 'popular'
  * Get theme configuration
  */
 function get_theme(): array {
+    static $cached = null;
+    if ($cached !== null) return $cached;
+    
     $data = supabase_query('theme_config', [
         'id' => 'eq.1',
         'select' => '*',
     ]);
     
     if (empty($data) || isset($data['error'])) {
-        return [
+        $cached = [
             'site_name' => DEFAULT_SITE_NAME,
             'primary_color' => DEFAULT_PRIMARY_COLOR,
             'secondary_color' => DEFAULT_SECONDARY_COLOR,
@@ -231,8 +234,10 @@ function get_theme(): array {
             'font_family' => 'Inter, sans-serif',
             'border_radius' => '0.375rem',
         ];
+        return $cached;
     }
-    return $data[0];
+    $cached = $data[0];
+    return $cached;
 }
 
 /**
@@ -250,24 +255,32 @@ function get_tenant_by_slug(string $slug): ?array {
  * Get UPI payment methods
  */
 function get_upi_methods(): array {
+    static $cached = null;
+    if ($cached !== null) return $cached;
+    
     $data = supabase_query('upi_methods', [
         'is_active' => 'eq.true',
         'order' => 'sort_order.asc',
         'select' => '*',
     ]);
-    return isset($data['error']) ? [] : $data;
+    $cached = isset($data['error']) ? [] : $data;
+    return $cached;
 }
 
 /**
  * Get payment offers
  */
 function get_payment_offers(): array {
+    static $cached = null;
+    if ($cached !== null) return $cached;
+    
     $data = supabase_query('payment_offers', [
         'is_active' => 'eq.true',
         'order' => 'sort_order.asc',
         'select' => '*',
     ]);
-    return isset($data['error']) ? [] : $data;
+    $cached = isset($data['error']) ? [] : $data;
+    return $cached;
 }
 
 /**
@@ -312,11 +325,15 @@ function get_order_items(string $orderId): array {
  * Get app setting
  */
 function get_app_setting(string $key): ?string {
+    static $cache = [];
+    if (array_key_exists($key, $cache)) return $cache[$key];
+    
     $data = supabase_query('app_settings', [
         'key' => 'eq.' . $key,
         'select' => 'value',
     ]);
-    return (!empty($data) && !isset($data['error'])) ? ($data[0]['value'] ?? null) : null;
+    $cache[$key] = (!empty($data) && !isset($data['error'])) ? ($data[0]['value'] ?? null) : null;
+    return $cache[$key];
 }
 
 /**
@@ -324,24 +341,28 @@ function get_app_setting(string $key): ?string {
  * Returns an associative array keyed by icon_key => image_url
  */
 function get_icon_settings(): array {
+    static $cached = null;
+    if ($cached !== null) return $cached;
+    
     $data = supabase_query('app_settings', [
         'key' => 'like.icon_*',
         'select' => 'key,value',
     ]);
     
     if (empty($data) || isset($data['error'])) {
-        return [];
+        $cached = [];
+        return $cached;
     }
     
     $icons = [];
     foreach ($data as $row) {
-        // Strip the 'icon_' prefix for cleaner keys
         $key = str_replace('icon_', '', $row['key']);
         if (!empty($row['value'])) {
             $icons[$key] = $row['value'];
         }
     }
-    return $icons;
+    $cached = $icons;
+    return $cached;
 }
 
 /**

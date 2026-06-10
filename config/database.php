@@ -78,7 +78,8 @@ function supabase_query(string $table, array $params = [], string $method = 'GET
     curl_setopt($ch, CURLOPT_URL, $url);
     curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
     curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
-    curl_setopt($ch, CURLOPT_TIMEOUT, 120);
+    curl_setopt($ch, CURLOPT_TIMEOUT, 15);
+    curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 5);
     
     if ($method === 'POST') {
         curl_setopt($ch, CURLOPT_POST, true);
