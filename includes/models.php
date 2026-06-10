@@ -77,12 +77,13 @@ function get_products(array $options = []): array {
     // Tenant scoping
     $tenantId = $options['tenant_id'] ?? null;
     if ($tenantId) {
-        $params['tenant_id'] = 'eq.' . $tenantId;
-        
         // Respect show_default_products flag
         $hideDefaults = $options['hide_defaults'] ?? false;
         if ($hideDefaults) {
-            $params['is_default_product'] = 'eq.false';
+            $params['tenant_id'] = 'eq.' . $tenantId;
+        } else {
+            // Show both tenant products AND default (null tenant) products
+            $params['or'] = '(tenant_id.eq.' . $tenantId . ',tenant_id.is.null)';
         }
     } else {
         $params['tenant_id'] = 'is.null';
