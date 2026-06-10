@@ -212,15 +212,50 @@ switch (true) {
         // Tenant routes
         $tenantSlug = $matches[1];
         $tenantPath = $matches[2] ?: '/';
+        $tenantPath = rtrim($tenantPath, '/') ?: '/';
         $tenant = get_tenant_by_slug($tenantSlug);
         if (!$tenant) {
             http_response_code(404);
-            require __DIR__ . '/pages/404.php';
+            echo '<div style="min-height:100vh;display:grid;place-items:center;text-align:center;font-family:Inter,sans-serif"><div><h1 style="font-size:1.5rem;font-weight:bold">Store not found</h1><p style="color:#666;margin-top:0.5rem">The store "' . e($tenantSlug) . '" does not exist.</p></div></div>';
             break;
         }
+        
+        // Check if store is active (allow admin routes even if inactive)
+        $isAdminRoute = (strpos($tenantPath, '/admin') === 0);
+        if (!$tenant['is_active'] && !$isAdminRoute) {
+            echo '<div style="min-height:100vh;display:grid;place-items:center;text-align:center;font-family:Inter,sans-serif"><div><h1 style="font-size:1.5rem;font-weight:bold">Store is inactive</h1><p style="color:#666;margin-top:0.5rem">Please contact the store owner.</p></div></div>';
+            break;
+        }
+        
+        // Check subscription expiry (block storefront but allow admin)
+        $isExpired = !empty($tenant['expires_at']) && strtotime($tenant['expires_at']) <= time();
+        if ($isExpired && !$isAdminRoute) {
+            echo '<div style="min-height:100vh;display:grid;place-items:center;text-align:center;font-family:Inter,sans-serif;padding:1rem"><div style="max-width:400px"><h1 style="font-size:1.5rem;font-weight:bold">Store unavailable</h1><p style="color:#666;margin-top:0.5rem">This store\'s subscription has expired. Please contact the store owner to renew.</p></div></div>';
+            break;
+        }
+        
         $_SESSION['current_tenant'] = $tenant;
         
         switch (true) {
+            // Tenant Admin routes
+            case $tenantPath === '/admin/login':
+                require __DIR__ . '/pages/tenant-admin/login.php';
+                break;
+            case $tenantPath === '/admin' || $tenantPath === '/admin/':
+                require __DIR__ . '/pages/tenant-admin/dashboard.php';
+                break;
+            case $tenantPath === '/admin/products':
+                require __DIR__ . '/pages/tenant-admin/products.php';
+                break;
+            case $tenantPath === '/admin/upi':
+                require __DIR__ . '/pages/tenant-admin/upi.php';
+                break;
+            case $tenantPath === '/admin/preview':
+                // Redirect to storefront
+                redirect("/t/{$tenantSlug}");
+                break;
+            
+            // Tenant Storefront routes
             case $tenantPath === '/' || $tenantPath === '':
                 require __DIR__ . '/pages/home.php';
                 break;

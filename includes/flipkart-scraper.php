@@ -439,3 +439,77 @@ function import_flipkart_category_to_db(string $url, ?string $categoryId = null,
         'total' => count($links),
     ];
 }
+
+
+
+// ─── Tenant-aware Import Wrappers ─────────────────────────────────────────────
+
+/**
+ * Import a single Flipkart product for a tenant.
+ * Returns product array with title on success, null on failure.
+ */
+function flipkart_import_product(string $url, string $tenantId): ?array {
+    $scraped = scrape_flipkart_product($url);
+    if (!$scraped || !$scraped['title']) return null;
+    
+    $discount = 0;
+    if ($scraped['mrp'] && $scraped['mrp'] > $scraped['price']) {
+        $discount = (int) round((($scraped['mrp'] - $scraped['price']) / $scraped['mrp']) * 100);
+    }
+    
+    $slug = slugify($scraped['title']);
+    $slug = substr($slug, 0, 70) . '-' . substr(md5(uniqid()), 0, 5);
+    
+    $payload = [
+        'tenant_id' => $tenantId,
+        'title' => $scraped['title'],
+        'slug' => $slug,
+        'description' => $scraped['description'] ?: null,
+        'brand' => $scraped['brand'],
+        'price' => $scraped['price'],
+        'mrp' => $scraped['mrp'],
+        'discount_percent' => $discount,
+        'stock' => 10,
+        'rating' => $scraped['rating'],
+        'rating_count' => $scraped['rating_count'],
+        'is_active' => true,
+        'is_featured' => false,
+    ];
+    
+    $result = supabase_query('products', [], 'POST', $payload);
+    if (empty($result) || isset($result['error'])) return null;
+    
+    $newId = is_array($result[0] ?? null) ? $result[0]['id'] : ($result['id'] ?? null);
+    
+    if ($newId && !empty($scraped['images'])) {
+        foreach ($scraped['images'] as $i => $imgUrl) {
+            supabase_query('product_images', [], 'POST', [
+                'product_id' => $newId,
+                'url' => $imgUrl,
+                'sort_order' => $i,
+            ]);
+        }
+    }
+    
+    return $scraped;
+}
+
+/**
+ * Import products from a Flipkart category/search page for a tenant.
+ * Returns count of successfully imported products.
+ */
+function flipkart_import_category(string $url, string $tenantId, int $limit = 12): int {
+    $links = scrape_flipkart_category($url);
+    if (empty($links)) return 0;
+    
+    $links = array_slice($links, 0, $limit);
+    $count = 0;
+    
+    foreach ($links as $productUrl) {
+        $result = flipkart_import_product($productUrl, $tenantId);
+        if ($result) $count++;
+        usleep(300000); // 0.3s delay to avoid rate limiting
+    }
+    
+    return $count;
+}

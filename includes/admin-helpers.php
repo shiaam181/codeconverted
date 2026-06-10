@@ -281,6 +281,129 @@ function slugify(string $s): string {
 }
 
 /**
+ * Seed tenant products from master catalog.
+ * Copies all master products (tenant_id IS NULL) to the new tenant,
+ * marking them as is_default_product = true.
+ */
+function seed_tenant_products(string $tenantId, string $tenantSlug): void {
+    // Get master products
+    $master = supabase_query('products', [
+        'tenant_id' => 'is.null',
+        'select' => 'id,title,slug,description,brand,price,mrp,discount_percent,stock,is_active,is_featured,category_id,is_assured',
+        'limit' => '500',
+    ]);
+    
+    if (empty($master) || isset($master['error'])) return;
+    
+    foreach ($master as $p) {
+        $newSlug = $p['slug'] . '-' . $tenantSlug;
+        $insert = [
+            'tenant_id' => $tenantId,
+            'title' => $p['title'],
+            'slug' => $newSlug,
+            'description' => $p['description'],
+            'brand' => $p['brand'],
+            'price' => $p['price'],
+            'mrp' => $p['mrp'],
+            'discount_percent' => $p['discount_percent'] ?? 0,
+            'stock' => $p['stock'] ?? 10,
+            'is_active' => $p['is_active'] ?? true,
+            'is_featured' => $p['is_featured'] ?? false,
+            'category_id' => $p['category_id'],
+            'is_assured' => $p['is_assured'] ?? false,
+            'is_default_product' => true,
+            'source_product_id' => $p['id'],
+        ];
+        
+        $newProduct = supabase_query('products', [], 'POST', $insert);
+        
+        // Copy product images
+        if (!empty($newProduct) && !isset($newProduct['error'])) {
+            $newProductId = is_array($newProduct[0] ?? null) ? $newProduct[0]['id'] : ($newProduct['id'] ?? null);
+            if ($newProductId) {
+                $images = supabase_query('product_images', [
+                    'product_id' => 'eq.' . $p['id'],
+                    'select' => 'url,sort_order',
+                ]);
+                if (!empty($images) && !isset($images['error'])) {
+                    foreach ($images as $img) {
+                        supabase_query('product_images', [], 'POST', [
+                            'product_id' => $newProductId,
+                            'url' => $img['url'],
+                            'sort_order' => $img['sort_order'] ?? 0,
+                        ]);
+                    }
+                }
+            }
+        }
+    }
+}
+
+/**
+ * Supabase Admin API - Update user (requires service_role key)
+ */
+function supabase_admin_update_user(string $userId, array $updates): array {
+    $serviceKey = getenv('SUPABASE_SERVICE_ROLE_KEY');
+    if (!$serviceKey) {
+        return ['error' => true, 'message' => 'SUPABASE_SERVICE_ROLE_KEY not configured'];
+    }
+    
+    $url = SUPABASE_URL . '/auth/v1/admin/users/' . $userId;
+    $headers = [
+        'apikey: ' . SUPABASE_KEY,
+        'Authorization: Bearer ' . $serviceKey,
+        'Content-Type: application/json',
+    ];
+    
+    $ch = curl_init();
+    curl_setopt($ch, CURLOPT_URL, $url);
+    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+    curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
+    curl_setopt($ch, CURLOPT_CUSTOMREQUEST, 'PUT');
+    curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($updates));
+    curl_setopt($ch, CURLOPT_TIMEOUT, 15);
+    $response = curl_exec($ch);
+    $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    curl_close($ch);
+    
+    $data = json_decode($response, true) ?: [];
+    if ($httpCode >= 400) {
+        return ['error' => true, 'message' => $data['msg'] ?? $data['message'] ?? 'Failed (HTTP ' . $httpCode . ')'];
+    }
+    return $data;
+}
+
+/**
+ * Get tenant products (for tenant admin panel)
+ */
+function get_tenant_products(string $tenantId, string $search = ''): array {
+    $params = [
+        'select' => '*,product_images(id,url,sort_order)',
+        'tenant_id' => 'eq.' . $tenantId,
+        'order' => 'created_at.desc',
+        'limit' => '200',
+    ];
+    if ($search) {
+        $params['title'] = 'ilike.%' . $search . '%';
+    }
+    $data = supabase_query('products', $params);
+    return (is_array($data) && !isset($data['error'])) ? $data : [];
+}
+
+/**
+ * Get tenant stats (product count, order count)
+ */
+function get_tenant_stats(string $tenantId): array {
+    $products = supabase_query('products', ['select' => 'id', 'tenant_id' => 'eq.' . $tenantId, 'limit' => '1000']);
+    $orders = supabase_query('orders', ['select' => 'id', 'tenant_id' => 'eq.' . $tenantId, 'limit' => '1000']);
+    
+    return [
+        'products' => is_array($products) && !isset($products['error']) ? count($products) : 0,
+        'orders' => is_array($orders) && !isset($orders['error']) ? count($orders) : 0,
+    ];
+}
+
+/**
  * Admin icon helper (simple text-based icons)
  */
 function admin_icon(string $name): string {

@@ -12,8 +12,10 @@ $tenantId = $tenant['id'] ?? null;
 $layout = get_homepage_layout();
 
 // Get all products for the infinite grid
+$hideDefaults = $tenantId && isset($tenant['show_default_products']) && $tenant['show_default_products'] === false;
 $products = get_products([
     'tenant_id' => $tenantId,
+    'hide_defaults' => $hideDefaults,
     'limit' => 200,
 ]);
 
