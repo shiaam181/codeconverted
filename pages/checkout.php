@@ -8,7 +8,6 @@
 
 $tenant = $_SESSION['current_tenant'] ?? null;
 $tenantId = $tenant['id'] ?? null;
-$pageTitle = 'Checkout — ' . ($tenant['name'] ?? DEFAULT_SITE_NAME);
 
 $totals = cart_totals();
 $items = $totals['items'];
@@ -24,6 +23,7 @@ $savings = $totals['savings'];
 $cartLink = $tenant ? "/t/{$tenant['slug']}/cart" : '/cart';
 $theme = get_theme();
 $siteName = $theme['site_name'] ?? DEFAULT_SITE_NAME;
+$pageTitle = 'Checkout — ' . $siteName;
 $upiId = clean_upi_id($tenant['upi_id'] ?? $theme['upi_id'] ?? null);
 
 // Load icon settings for payment section
@@ -45,6 +45,7 @@ foreach ($allOffers as $o) {
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
 <title><?= e($pageTitle) ?></title>
+<?php if (!empty($theme['favicon_url'])): ?><link rel="icon" href="<?= e($theme['favicon_url']) ?>"><?php endif; ?>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <style>
@@ -163,10 +164,13 @@ input,select,textarea{font:inherit}
 .s-item .info-col .prices .d{font-size:13px;font-weight:600;color:#388e3c}
 .s-item .info-col .prices .o{font-size:12px;color:#878787;text-decoration:line-through}
 .s-item .info-col .prices .n{font-size:15px;font-weight:700}
-.donate-card .dt{font-size:14px;font-weight:500}
-.donate-card .ds{font-size:12px;color:#878787}
+.donate-card{display:flex;align-items:flex-start;gap:12px}
+.donate-card .donate-left{flex:1}
+.donate-card .dt{font-size:14px;font-weight:600}
+.donate-card .ds{font-size:12px;color:#878787;margin-top:2px}
 .donate-card .btns{display:flex;gap:8px;margin-top:10px}
 .donate-card .btns button{padding:7px 18px;border:1px solid #c2c2c2;border-radius:24px;background:#fff;font-size:13px}
+.donate-card .donate-img{width:64px;height:64px;border-radius:8px;object-fit:cover;flex-shrink:0}
 .price-card .row{display:flex;justify-content:space-between;font-size:13px;margin-bottom:10px}
 .price-card .total{display:flex;justify-content:space-between;font-size:15px;font-weight:700;border-top:1px solid #eee;padding-top:10px;margin-top:4px}
 .price-card .save-bar{background:#e8f5e9;color:#1b5e20;font-size:13px;text-align:center;padding:10px;border-radius:6px;margin-top:12px}
@@ -349,9 +353,14 @@ input,select,textarea{font:inherit}
         <?php endforeach; ?>
     </div>
     <div class="s-card donate-card">
-        <p class="dt">Donate to <?= e($siteName) ?> Foundation</p>
-        <p class="ds">Support transformative social work</p>
-        <div class="btns"><button type="button">₹10</button><button type="button">₹20</button><button type="button">₹50</button><button type="button">₹100</button></div>
+        <div class="donate-left">
+            <p class="dt">Donate to <?= e($siteName) ?> Foundation</p>
+            <p class="ds">Support transformative social work in India</p>
+            <div class="btns"><button type="button">₹10</button><button type="button">₹20</button><button type="button">₹50</button><button type="button">₹100</button></div>
+        </div>
+        <?php if (!empty($theme['donation_image_url'])): ?>
+        <img src="<?= e($theme['donation_image_url']) ?>" alt="" class="donate-img">
+        <?php endif; ?>
     </div>
     <div class="s-card price-card">
         <div class="row"><span>MRP</span><span>₹<?= number_format($mrpTotal,0,'.',',') ?></span></div>

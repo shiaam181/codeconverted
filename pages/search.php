@@ -6,7 +6,7 @@
 $tenant = $_SESSION['current_tenant'] ?? null;
 $tenantId = $tenant['id'] ?? null;
 $q = trim(get_param('q', ''));
-$pageTitle = $q ? "Search: {$q}" : 'Search — ' . ($tenant['name'] ?? DEFAULT_SITE_NAME);
+$pageTitle = $q ? "Search: {$q}" : 'Search — ' . (get_theme()['site_name'] ?? DEFAULT_SITE_NAME);
 
 $results = [];
 if (strlen($q) >= 1) {

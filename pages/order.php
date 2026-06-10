@@ -8,7 +8,7 @@ $order = get_order($orderId);
 $items = get_order_items($orderId);
 $homeLink = $tenant ? "/t/{$tenant['slug']}" : '/';
 
-$pageTitle = 'Order — ' . ($tenant['name'] ?? DEFAULT_SITE_NAME);
+$pageTitle = 'Order — ' . (get_theme()['site_name'] ?? DEFAULT_SITE_NAME);
 
 // Check if there's a pending UPI payment to redirect to
 $pendingPayment = $_SESSION['pending_payment'] ?? null;

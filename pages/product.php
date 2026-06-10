@@ -13,7 +13,7 @@ if (!$product) {
     return;
 }
 
-$pageTitle = e($product['title']) . ' — ' . ($tenant['name'] ?? DEFAULT_SITE_NAME);
+$pageTitle = e($product['title']) . ' — ' . (get_theme()['site_name'] ?? DEFAULT_SITE_NAME);
 
 $images = $product['product_images'] ?? [];
 usort($images, fn($a, $b) => ($a['sort_order'] ?? 0) - ($b['sort_order'] ?? 0));
@@ -49,6 +49,7 @@ $deliveryDate = date('D, j M', strtotime('+3 days'));
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
 <title><?= $pageTitle ?></title>
+<?php $__theme = get_theme(); if (!empty($__theme['favicon_url'])): ?><link rel="icon" href="<?= e($__theme['favicon_url']) ?>"><?php endif; ?>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
 *{margin:0;padding:0;box-sizing:border-box}

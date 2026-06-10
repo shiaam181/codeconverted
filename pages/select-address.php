@@ -15,6 +15,7 @@ $siteName = $theme['site_name'] ?? DEFAULT_SITE_NAME;
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
 <title>Select Delivery Address — <?= e($siteName) ?></title>
+<?php $__theme = get_theme(); if (!empty($__theme['favicon_url'])): ?><link rel="icon" href="<?= e($__theme['favicon_url']) ?>"><?php endif; ?>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
 *{margin:0;padding:0;box-sizing:border-box}

@@ -5,7 +5,7 @@
 
 $tenant = $_SESSION['current_tenant'] ?? null;
 $tenantId = $tenant['id'] ?? null;
-$pageTitle = 'Your Cart — ' . ($tenant['name'] ?? DEFAULT_SITE_NAME);
+$pageTitle = 'Your Cart — ' . (get_theme()['site_name'] ?? DEFAULT_SITE_NAME);
 
 $totals = cart_totals();
 $items = $totals['items'];

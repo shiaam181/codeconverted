@@ -17,7 +17,7 @@ if (!$category) {
     return;
 }
 
-$pageTitle = $category['name'] . ' — ' . ($tenant['name'] ?? DEFAULT_SITE_NAME);
+$pageTitle = $category['name'] . ' — ' . (get_theme()['site_name'] ?? DEFAULT_SITE_NAME);
 $homeLink = $tenant ? "/t/{$tenant['slug']}" : '/';
 $categoryLink = $tenant ? "/t/{$tenant['slug']}/category/{$slug}" : "/category/{$slug}";
 
