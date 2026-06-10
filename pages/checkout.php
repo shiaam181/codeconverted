@@ -169,7 +169,7 @@ input,select,textarea{font:inherit}
 .donate-top .donate-left{flex:1}
 .donate-top .dt{font-size:14px;font-weight:600;color:#212121}
 .donate-top .ds{font-size:12px;color:#878787;margin-top:2px}
-.donate-top .donate-img{width:64px;height:64px;border-radius:10px 0 0 10px;object-fit:cover;flex-shrink:0;margin-right:-16px}
+.donate-top .donate-img{width:80px;height:56px;border-radius:8px 0 0 8px;object-fit:cover;flex-shrink:0;margin-right:-16px}
 .donate-divider{height:1px;background:#eee;margin:0}
 .donate-btns{display:flex;gap:10px;padding:12px 16px}
 .donate-btns button{flex:1;padding:8px 0;border:1px solid #e0e0e0;border-radius:20px;background:#fff;font-size:13px;font-weight:500;color:#212121;cursor:pointer}
