@@ -334,13 +334,43 @@ function scrape_flipkart_category(string $url): array {
 /**
  * Full import: scrape product + create in database + save ALL images
  */
-function import_flipkart_product_to_db(string $url, ?string $categoryId = null, int $stock = 10, bool $isActive = true, bool $isFeatured = false): ?array {
+function import_flipkart_product_to_db(string $url, ?string $categoryId = null, int $stock = 10, bool $isActive = true, bool $isFeatured = false, ?int $priceMin = null, ?int $priceMax = null): ?array {
     $scraped = scrape_flipkart_product($url);
     if (!$scraped || !$scraped['title']) return null;
 
+    // Check for duplicates by title (skip if already exists)
+    $existing = supabase_query('products', [
+        'title' => 'eq.' . $scraped['title'],
+        'select' => 'id',
+        'limit' => '1',
+    ]);
+    if (!empty($existing) && !isset($existing['error']) && !empty($existing[0]['id'])) {
+        // Product already exists, skip it
+        return null;
+    }
+
+    // Apply random price override if range is set
+    $price = $scraped['price'];
+    $mrp = $scraped['mrp'];
+    if ($priceMin !== null && $priceMax !== null && $priceMin > 0 && $priceMax >= $priceMin) {
+        // MRP stays as Flipkart's real price, selling price is randomized
+        $mrp = $scraped['mrp'] ?: $scraped['price']; // Keep real Flipkart price as MRP
+        $price = rand($priceMin, $priceMax); // Random offer price
+        // Make sure price is less than MRP
+        if ($price >= $mrp) {
+            $price = (int) round($mrp * 0.7); // 30% off if random is too high
+        }
+    } elseif ($priceMin !== null && $priceMin > 0) {
+        $mrp = $scraped['mrp'] ?: $scraped['price'];
+        $price = $priceMin;
+        if ($price >= $mrp) {
+            $price = (int) round($mrp * 0.7);
+        }
+    }
+
     $discount = 0;
-    if ($scraped['mrp'] && $scraped['mrp'] > $scraped['price']) {
-        $discount = (int) round((($scraped['mrp'] - $scraped['price']) / $scraped['mrp']) * 100);
+    if ($mrp && $mrp > $price) {
+        $discount = (int) round((($mrp - $price) / $mrp) * 100);
     }
 
     $slug = slugify($scraped['title']);
@@ -351,8 +381,8 @@ function import_flipkart_product_to_db(string $url, ?string $categoryId = null, 
         'slug' => $slug,
         'description' => $scraped['description'] ?: null,
         'brand' => $scraped['brand'],
-        'price' => $scraped['price'],
-        'mrp' => $scraped['mrp'],
+        'price' => $price,
+        'mrp' => $mrp,
         'discount_percent' => $discount,
         'stock' => $stock,
         'rating' => $scraped['rating'],
@@ -387,13 +417,13 @@ function import_flipkart_product_to_db(string $url, ?string $categoryId = null, 
 /**
  * Import all products from a Flipkart category/search URL.
  */
-function import_flipkart_category_to_db(string $url, ?string $categoryId = null, int $stock = 10): array {
+function import_flipkart_category_to_db(string $url, ?string $categoryId = null, int $stock = 10, ?int $priceMin = null, ?int $priceMax = null): array {
     $links = scrape_flipkart_category($url);
     $imported = 0;
     $failed = 0;
 
     foreach ($links as $productUrl) {
-        $result = import_flipkart_product_to_db($productUrl, $categoryId, $stock);
+        $result = import_flipkart_product_to_db($productUrl, $categoryId, $stock, true, false, $priceMin, $priceMax);
         if ($result) {
             $imported++;
         } else {

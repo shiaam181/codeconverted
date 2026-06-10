@@ -100,6 +100,10 @@ switch (true) {
         require __DIR__ . '/pages/checkout.php';
         break;
         
+    case $path === '/select-address':
+        require __DIR__ . '/pages/select-address.php';
+        break;
+        
     case $path === '/search':
         require __DIR__ . '/pages/search.php';
         break;

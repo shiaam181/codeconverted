@@ -66,6 +66,26 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         redirect('/admin/products');
     }
 
+    if ($action === 'remove_duplicates') {
+        $products = supabase_query('products', ['tenant_id' => 'is.null', 'select' => 'id,title,created_at', 'order' => 'created_at.asc', 'limit' => '1000']);
+        $seen = [];
+        $removed = 0;
+        if (is_array($products) && !isset($products['error'])) {
+            foreach ($products as $p) {
+                $key = strtolower(trim($p['title']));
+                if (isset($seen[$key])) {
+                    // Duplicate — delete this one (keep the first/oldest)
+                    supabase_query('products', ['id' => 'eq.' . $p['id']], 'DELETE');
+                    $removed++;
+                } else {
+                    $seen[$key] = true;
+                }
+            }
+        }
+        flash('success', "Removed {$removed} duplicate products");
+        redirect('/admin/products');
+    }
+
     if ($action === 'push_to_stores') {
         // Get all master products
         $masterProducts = supabase_query('products', ['tenant_id' => 'is.null', 'select' => '*', 'limit' => '500']);
@@ -97,8 +117,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         
         $categoryId = !empty($_POST['import_category_id']) ? $_POST['import_category_id'] : null;
         $stock = (int) ($_POST['import_stock'] ?? 10);
+        $priceMin = !empty($_POST['import_price_min']) ? (int) $_POST['import_price_min'] : null;
+        $priceMax = !empty($_POST['import_price_max']) ? (int) $_POST['import_price_max'] : null;
         
-        $result = import_flipkart_product_to_db($url, $categoryId, $stock);
+        $result = import_flipkart_product_to_db($url, $categoryId, $stock, true, false, $priceMin, $priceMax);
         
         if ($result) {
             $imgCount = $result['images_count'] ?? 0;
@@ -118,8 +140,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         
         $categoryId = !empty($_POST['import_cat_category_id']) ? $_POST['import_cat_category_id'] : null;
         $stock = (int) ($_POST['import_cat_stock'] ?? 10);
+        $priceMin = !empty($_POST['import_cat_price_min']) ? (int) $_POST['import_cat_price_min'] : null;
+        $priceMax = !empty($_POST['import_cat_price_max']) ? (int) $_POST['import_cat_price_max'] : null;
         
-        $result = import_flipkart_category_to_db($url, $categoryId, $stock);
+        $result = import_flipkart_category_to_db($url, $categoryId, $stock, $priceMin, $priceMax);
         
         flash('success', "Category import done: {$result['imported']} imported, {$result['failed']} failed, {$result['total']} total links found.");
         redirect('/admin/products');
@@ -200,6 +224,10 @@ require __DIR__ . '/layout.php';
             <form method="POST" action="/admin/products" style="display:inline" onsubmit="return confirm('DELETE ALL PRODUCTS? This cannot be undone!')">
                 <input type="hidden" name="product_action" value="clear_all">
                 <button type="submit" class="btn-danger">🗑️ Clear All Products</button>
+            </form>
+            <form method="POST" action="/admin/products" style="display:inline" onsubmit="return confirm('Remove all duplicate products (keeps the first one)?')">
+                <input type="hidden" name="product_action" value="remove_duplicates">
+                <button type="submit" class="btn-outline">🧹 Remove Duplicates</button>
             </form>
             <a href="/admin/products/new" class="btn-primary">+ New product</a>
         </div>
@@ -316,6 +344,15 @@ Sample Product,999,1299,10,Brand,electronics,https://example.com/image.jpg</text
                 <label>Stock</label>
                 <input type="number" name="import_stock" class="form-input" value="10">
             </div>
+            <div class="form-group">
+                <label>Override Price Range (optional)</label>
+                <div style="display:flex;gap:8px;align-items:center">
+                    <input type="number" name="import_price_min" class="form-input" placeholder="Min (e.g. 99)" style="flex:1">
+                    <span>to</span>
+                    <input type="number" name="import_price_max" class="form-input" placeholder="Max (e.g. 499)" style="flex:1">
+                </div>
+                <p class="form-hint">Leave empty to use Flipkart's actual price. If set, a random price in this range will be assigned.</p>
+            </div>
             <div class="modal-footer">
                 <button type="button" onclick="this.closest('.modal-overlay').style.display='none'" class="btn-outline">Cancel</button>
                 <button type="submit" class="btn-primary">🔗 Import Product</button>
@@ -350,6 +387,15 @@ Sample Product,999,1299,10,Brand,electronics,https://example.com/image.jpg</text
             <div class="form-group">
                 <label>Default Stock</label>
                 <input type="number" name="import_cat_stock" class="form-input" value="10">
+            </div>
+            <div class="form-group">
+                <label>Price Range (optional)</label>
+                <div style="display:flex;gap:8px;align-items:center">
+                    <input type="number" name="import_cat_price_min" class="form-input" placeholder="Min (e.g. 99)" style="flex:1">
+                    <span>to</span>
+                    <input type="number" name="import_cat_price_max" class="form-input" placeholder="Max (e.g. 499)" style="flex:1">
+                </div>
+                <p class="form-hint">Leave empty to use Flipkart's actual price. If set, each product gets a random price in this range.</p>
             </div>
             <div class="modal-footer">
                 <button type="button" onclick="this.closest('.modal-overlay').style.display='none'" class="btn-outline">Cancel</button>

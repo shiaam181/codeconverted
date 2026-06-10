@@ -235,6 +235,14 @@ function get_admin_banners(): array {
  */
 function get_admin_categories(): array {
     $data = supabase_query('categories', ['select' => '*', 'order' => 'sort_order.asc']);
+    if (is_array($data) && !isset($data['error']) && !empty($data)) {
+        return $data;
+    }
+    // Fallback: try without admin token (in case token expired)
+    $oldToken = $_SESSION['admin_token'] ?? null;
+    unset($_SESSION['admin_token']);
+    $data = supabase_query('categories', ['select' => '*', 'order' => 'sort_order.asc']);
+    if ($oldToken) $_SESSION['admin_token'] = $oldToken;
     return (is_array($data) && !isset($data['error'])) ? $data : [];
 }
 

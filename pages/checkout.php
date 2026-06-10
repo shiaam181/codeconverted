@@ -28,6 +28,16 @@ $upiId = clean_upi_id($tenant['upi_id'] ?? $theme['upi_id'] ?? null);
 
 // Load icon settings for payment section
 $iconSettings = get_icon_settings();
+
+// Load cashback banner from payment offers
+$cashbackBanner = null;
+$allOffers = get_payment_offers();
+foreach ($allOffers as $o) {
+    if (($o['brand'] ?? '') === 'cashback_banner' && ($o['is_active'] ?? false)) {
+        $cashbackBanner = $o;
+        break;
+    }
+}
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -39,16 +49,26 @@ $iconSettings = get_icon_settings();
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
-body{font-family:'Inter',sans-serif;background:#f1f3f6;color:#212121;-webkit-font-smoothing:antialiased}
+body{font-family:'Inter',sans-serif;background:#f1f3f6;color:#212121;-webkit-font-smoothing:antialiased;-webkit-overflow-scrolling:touch;overflow-x:hidden}
+html{overflow-x:hidden}
 a{text-decoration:none;color:inherit}
 button{font:inherit;cursor:pointer;border:none;background:none}
 input,select,textarea{font:inherit}
 
+/* Hide Leaflet attribution */
+.leaflet-control-attribution{display:none!important}
+
 /* Header */
-.co-hdr{position:sticky;top:0;z-index:50;background:#fff}
+.co-hdr{position:sticky;top:0;z-index:1000;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.06)}
 .co-hdr-top{display:flex;align-items:center;justify-content:space-between;padding:14px 16px;border-bottom:1px solid #f0f0f0}
 .co-hdr-top h1{font-size:16px;font-weight:600}
 .co-hdr-top .step-info{font-size:11px;color:#878787}
+.co-hdr-pay{display:flex;align-items:center;padding:14px 16px;border-bottom:1px solid #f0f0f0;gap:12px}
+.co-hdr-pay .pay-back-btn{display:flex;align-items:center;background:none;border:none;padding:4px}
+.co-hdr-pay .pay-hdr-text{flex:1}
+.co-hdr-pay .pay-hdr-step{display:block;font-size:11px;color:#878787}
+.co-hdr-pay .pay-hdr-title{display:block;font-size:17px;font-weight:700;color:#212121}
+.co-hdr-pay .step-info{font-size:11px;color:#878787}
 
 /* Stepper */
 .stepper{display:flex;align-items:center;padding:18px 20px;background:#fff}
@@ -64,9 +84,9 @@ input,select,textarea{font:inherit}
 /* ═══ MAP VIEW ═══ */
 .map-hdr{background:#fff;padding:12px 16px;display:flex;align-items:center;gap:12px;border-bottom:1px solid #f0f0f0}
 .map-hdr h2{font-size:15px;font-weight:600}
-.map-wrap{position:relative}
-#mapEl{height:50vh;width:100%;background:#e8e8e8}
-.map-searchbar{position:absolute;top:10px;left:10px;right:10px;z-index:500}
+.map-wrap{position:relative;z-index:1;overflow:hidden}
+#mapEl{height:50vh;width:100%;background:#e8e8e8;z-index:1}
+.map-searchbar{position:absolute;top:10px;left:10px;right:10px;z-index:400}
 .map-searchbar input{width:100%;padding:11px 16px 11px 40px;border-radius:24px;border:none;background:#fff;box-shadow:0 2px 10px rgba(0,0,0,.12);font-size:14px;outline:none}
 .map-searchbar svg{position:absolute;left:14px;top:12px;color:#878787}
 .map-searchbar .results{background:#fff;border-radius:10px;box-shadow:0 4px 16px rgba(0,0,0,.12);margin-top:6px;max-height:200px;overflow:auto;display:none}
@@ -74,7 +94,7 @@ input,select,textarea{font:inherit}
 .map-searchbar .results button{width:100%;text-align:left;padding:10px 14px;border:none;background:none;border-bottom:1px solid #f7f7f7;font-size:13px}
 .map-searchbar .results button:hover{background:#f5f8ff}
 .map-searchbar .results button .sub{font-size:11px;color:#878787;margin-top:2px;display:block}
-.map-locate{position:absolute;bottom:14px;left:50%;transform:translateX(-50%);z-index:500;background:#fff;padding:9px 18px;border-radius:24px;box-shadow:0 2px 10px rgba(0,0,0,.15);display:flex;align-items:center;gap:8px;font-size:13px;font-weight:600;color:#2874f0;border:none}
+.map-locate{position:absolute;bottom:14px;left:50%;transform:translateX(-50%);z-index:400;background:#fff;padding:9px 18px;border-radius:24px;box-shadow:0 2px 10px rgba(0,0,0,.15);display:flex;align-items:center;gap:8px;font-size:13px;font-weight:600;color:#2874f0;border:none}
 .map-bottom{background:#fff;padding:16px}
 .map-bottom .deliver-label{font-size:15px;font-weight:600;margin-bottom:10px}
 .map-bottom .area-card{background:#f7f7f7;border-radius:8px;padding:12px 14px;display:flex;gap:10px;align-items:flex-start;margin-bottom:14px}
@@ -154,13 +174,22 @@ input,select,textarea{font:inherit}
 /* ═══ PAYMENT VIEW ═══ */
 .payment-view{display:none;padding:10px 12px;padding-bottom:100px}
 .payment-view.show{display:block}
-.pay-hdr{background:#fff;border-radius:8px;padding:14px 16px;margin-bottom:8px;display:flex;align-items:center;justify-content:space-between}
-.pay-hdr .left{display:flex;align-items:center;gap:8px;font-size:11px;color:#878787}
-.pay-hdr .left span{font-size:14px;font-weight:700;color:#212121}
-.pay-hdr .right{font-size:18px;font-weight:800;color:#212121}
-.pay-cashback{background:#fff;border-radius:8px;padding:12px 16px;margin-bottom:8px;display:flex;align-items:center;gap:10px}
-.pay-cashback .tag{background:#388e3c;color:#fff;font-size:11px;font-weight:700;padding:3px 8px;border-radius:3px}
-.pay-cashback .text{font-size:13px;color:#212121}
+.pay-hdr{background:#e3f0ff;border-radius:8px;padding:14px 16px;margin-bottom:8px;display:flex;align-items:center;justify-content:space-between;cursor:pointer}
+.pay-hdr .left{font-size:14px;color:#2874f0;font-weight:500;display:flex;align-items:center;gap:4px}
+.pay-hdr .left svg{transition:transform .2s}
+.pay-hdr .right{font-size:18px;font-weight:800;color:#2874f0}
+.pay-total-expand{background:#fff;border-radius:8px;padding:12px 16px;margin-bottom:8px;margin-top:-4px}
+.ptd-row{display:flex;justify-content:space-between;font-size:13px;color:#212121;padding:6px 0}
+.ptd-row.ptd-total{font-weight:700;font-size:14px;border-top:1px solid #eee;padding-top:10px;margin-top:4px}
+.ptd-save{background:#e8f5e9;color:#1b5e20;font-size:12px;text-align:center;padding:8px;border-radius:6px;margin-top:8px}
+.pay-cashback{background:#e8f5e9;border-radius:10px;padding:16px 16px;margin-bottom:8px;display:flex;align-items:center;gap:12px;position:relative;overflow:hidden}
+.pay-cashback::after{content:'';position:absolute;top:0;left:-100%;width:60%;height:100%;background:linear-gradient(90deg,transparent,rgba(255,255,255,0.45),transparent);animation:shimmer 2.5s infinite}
+@keyframes shimmer{0%{left:-100%}100%{left:100%}}
+.pay-cashback .cb-content{flex:1}
+.pay-cashback .cb-content .tag{display:block;font-size:15px;font-weight:700;color:#1b5e20}
+.pay-cashback .cb-content .text{display:block;font-size:13px;color:#555;margin-top:2px}
+.pay-cashback .icons{display:flex;gap:6px;align-items:center;z-index:1}
+.pay-cashback .icons img{width:30px;height:30px;border-radius:50%;object-fit:contain;background:#fff;box-shadow:0 1px 4px rgba(0,0,0,.1);padding:2px}
 .pay-section{background:#fff;border-radius:8px;margin-bottom:8px;overflow:hidden}
 .pay-row{display:flex;align-items:center;padding:16px;border-bottom:1px solid #f5f5f5;gap:12px;cursor:pointer}
 .pay-row:last-child{border-bottom:none}
@@ -171,7 +200,7 @@ input,select,textarea{font:inherit}
 .pay-row .info .offer{font-size:11px;color:#388e3c;font-weight:500;margin-top:2px}
 .pay-row .arrow{color:#c2c2c2}
 .pay-row .unavail{font-size:11px;color:#878787}
-.pay-place-btn{width:100%;padding:15px;background:#fb641b;color:#fff;border:none;border-radius:8px;font-size:16px;font-weight:700;margin-top:12px}
+.pay-place-btn{width:100%;padding:16px;background:#ffc200;color:#212121;border:none;border-radius:8px;font-size:16px;font-weight:700;margin-top:12px;box-shadow:0 2px 8px rgba(255,194,0,.3)}
 
 /* Sticky footer */
 .co-footer{position:fixed;bottom:0;left:0;right:0;z-index:30;background:#fff;border-top:1px solid #eee;box-shadow:0 -2px 10px rgba(0,0,0,.08);padding:12px 16px;display:none;align-items:center;justify-content:space-between}
@@ -189,7 +218,16 @@ input,select,textarea{font:inherit}
     <div class="co-hdr-top">
         <a href="<?= e($cartLink) ?>"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#212121" stroke-width="2"><path d="m15 18-6-6 6-6"/></svg></a>
         <h1>Checkout</h1>
-        <span class="step-info">🔒 100% Secure</span>
+        <span class="step-info"><?php $lockIcon = $iconSettings['ui_lock'] ?? ''; if ($lockIcon): ?><img src="<?= e($lockIcon) ?>" alt="" style="width:16px;height:16px;vertical-align:middle;margin-right:4px"><?php else: ?>🔒<?php endif; ?> 100% Secure</span>
+    </div>
+    <!-- Payment step header (hidden by default) -->
+    <div class="co-hdr-pay" id="payHdrAlt" style="display:none">
+        <button onclick="go('summary')" class="pay-back-btn"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#212121" stroke-width="2"><path d="m15 18-6-6 6-6"/></svg></button>
+        <div class="pay-hdr-text">
+            <span class="pay-hdr-step">Step 3 of 3</span>
+            <span class="pay-hdr-title">Payments</span>
+        </div>
+        <span class="step-info"><?php if ($lockIcon): ?><img src="<?= e($lockIcon) ?>" alt="" style="width:16px;height:16px;vertical-align:middle;margin-right:4px"><?php else: ?>🔒<?php endif; ?> 100% Secure</span>
     </div>
     <div class="stepper" id="stepperEl">
         <div class="stp active" id="s1"><div class="stp-circle active">1</div><span class="stp-label">Address</span></div>
@@ -225,7 +263,7 @@ input,select,textarea{font:inherit}
 
 <!-- ═══ FORM VIEW ═══ -->
 <div class="form-view" id="vForm">
-    <form method="POST" action="/" id="coForm">
+    <form id="coForm">
         <input type="hidden" name="action" value="place_order">
         <input type="hidden" name="tenant_id" value="<?= e($tenantId ?? '') ?>">
         <input type="hidden" name="tenant_slug" value="<?= e($tenant['slug'] ?? '') ?>">
@@ -312,49 +350,198 @@ input,select,textarea{font:inherit}
 
 <!-- ═══ PAYMENT VIEW ═══ -->
 <div class="payment-view" id="vPayment">
-    <div class="pay-hdr">
-        <div class="left"><span>Step 3 of 3</span><br>Payments</div>
+    <div class="pay-hdr" onclick="toggleTotalDetails(this)">
+        <div class="left">Total Amount <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m6 9 6 6 6-6"/></svg></div>
         <div class="right">₹<?= number_format($total,0,'.',',') ?></div>
     </div>
-    <div class="pay-cashback"><span class="tag">5% Cashback</span><span class="text">Claim now with payment offers</span></div>
+    <!-- Price breakdown (hidden by default) -->
+    <div class="pay-total-expand" id="payTotalExpand" style="display:none">
+        <div class="ptd-row"><span>MRP</span><span>₹<?= number_format($mrpTotal,0,'.',',') ?></span></div>
+        <?php if($discount>0): ?><div class="ptd-row"><span>Discounts</span><span style="color:#388e3c">-₹<?= number_format($discount,0,'.',',') ?></span></div><?php endif; ?>
+        <div class="ptd-row"><span>Delivery</span><span style="color:#388e3c"><?= $shipping===0?'FREE':'₹'.$shipping ?></span></div>
+        <div class="ptd-row ptd-total"><span>Total</span><span>₹<?= number_format($total,0,'.',',') ?></span></div>
+        <?php if($savings>0): ?><div class="ptd-save">You save ₹<?= number_format($savings,0,'.',',') ?> on this order</div><?php endif; ?>
+    </div>
+    <?php if ($cashbackBanner): ?>
+    <div class="pay-cashback">
+        <div class="cb-content">
+            <span class="tag"><?= e($cashbackBanner['title']) ?></span>
+            <span class="text"><?= e($cashbackBanner['description'] ?? 'Claim now with payment offers') ?></span>
+        </div>
+        <?php if (!empty($cashbackBanner['logo_url']) || !empty($cashbackBanner['logo_url_2'])): ?>
+        <span class="icons">
+            <?php if (!empty($cashbackBanner['logo_url'])): ?><img src="<?= e($cashbackBanner['logo_url']) ?>" alt=""><?php endif; ?>
+            <?php if (!empty($cashbackBanner['logo_url_2'])): ?><img src="<?= e($cashbackBanner['logo_url_2']) ?>" alt=""><?php endif; ?>
+        </span>
+        <?php endif; ?>
+    </div>
+    <?php else: ?>
+    <div class="pay-cashback"><div class="cb-content"><span class="tag">5% Cashback</span><span class="text">Claim now with payment offers</span></div></div>
+    <?php endif; ?>
     
+    <!-- UPI - Top Priority -->
     <div class="pay-section">
-        <div class="pay-row" onclick="document.getElementById('fPay').value='upi'">
-            <div class="icon"><?php if (!empty($iconSettings['pay_recommended'])): ?><img src="<?= e($iconSettings['pay_recommended']) ?>" style="width:28px;height:28px;object-fit:contain;"><?php else: ?>💳<?php endif; ?></div>
+        <div class="pay-row" style="background:#f5f9ff;border-left:3px solid #2874f0" onclick="togglePaySection(this)">
+            <div class="icon"><?php if (!empty($iconSettings['pay_upi'])): ?><img src="<?= e($iconSettings['pay_upi']) ?>" style="width:28px;height:28px;object-fit:contain;"><?php else: ?><span style="font-size:11px;font-weight:700;background:#5f259f;color:#fff;padding:4px 6px;border-radius:3px">UPI</span><?php endif; ?></div>
+            <div class="info"><p class="main">UPI</p><p class="sub">Pay by any UPI app</p><p class="offer">Get upto ₹50 cashback • 2 offers</p></div>
+            <span class="arrow" style="font-size:20px;transition:transform .2s">⌄</span>
+        </div>
+        <!-- UPI Apps -->
+        <div class="pay-expand" style="display:none;padding:4px 16px 8px">
+            <?php 
+            $upiMethods = get_upi_methods();
+            if (empty($upiMethods)) {
+                // Default apps with logos when none configured in admin
+                $upiMethods = [
+                    ['name' => 'Google Pay', 'logo_url' => 'https://upload.wikimedia.org/wikipedia/commons/thumb/f/f2/Google_Pay_Logo.svg/512px-Google_Pay_Logo.svg.png'],
+                    ['name' => 'PhonePe', 'logo_url' => 'https://upload.wikimedia.org/wikipedia/commons/thumb/7/71/PhonePe_Logo.svg/1024px-PhonePe_Logo.svg.png'],
+                    ['name' => 'Paytm', 'logo_url' => 'https://upload.wikimedia.org/wikipedia/commons/thumb/2/24/Paytm_Logo_%28standalone%29.svg/1024px-Paytm_Logo_%28standalone%29.svg.png'],
+                    ['name' => 'BHIM', 'logo_url' => 'https://upload.wikimedia.org/wikipedia/commons/thumb/e/e1/UPI-Logo-vector.svg/1024px-UPI-Logo-vector.svg.png'],
+                    ['name' => 'CRED', 'logo_url' => 'https://upload.wikimedia.org/wikipedia/commons/thumb/9/98/Cred_Logo.svg/512px-Cred_Logo.svg.png'],
+                ];
+            }
+            foreach ($upiMethods as $idx => $upiApp): ?>
+            <label style="display:flex;align-items:center;gap:12px;padding:14px 0;border-bottom:1px solid #f5f5f5;cursor:pointer">
+                <input type="radio" name="upi_app_select" value="<?= e($upiApp['name']) ?>" <?= $idx === 0 ? 'checked' : '' ?> onclick="document.getElementById('fApp').value=this.value;document.getElementById('fPay').value='upi'" style="width:18px;height:18px;accent-color:#2874f0">
+                <?php if (!empty($upiApp['logo_url'])): ?>
+                <img src="<?= e($upiApp['logo_url']) ?>" style="width:28px;height:28px;border-radius:6px;object-fit:contain" alt="">
+                <?php endif; ?>
+                <span style="font-size:14px;font-weight:500;color:#212121"><?= e($upiApp['name']) ?></span>
+            </label>
+            <?php endforeach; ?>
+            <button type="button" class="pay-place-btn" style="margin-top:8px" onclick="placeUPIOrder()">Place Order</button>
+        </div>
+    </div>
+
+    <!-- Other Payment Methods -->
+    <div class="pay-section">
+        <div class="pay-row" onclick="togglePaySection(this)">
+            <div class="icon">🎁</div>
             <div class="info"><p class="main">Recommended for You</p></div>
-            <span class="arrow">›</span>
+            <span class="arrow" style="font-size:20px;transition:transform .2s">⌄</span>
+        </div>
+        <div class="pay-expand" style="display:none;padding:0 16px 12px">
+            <div style="padding:14px 0;border-bottom:1px solid #f5f5f5;cursor:pointer" onclick="selectPayMethod('cod')">
+                <p style="font-size:14px;font-weight:500">Cash on Delivery</p>
+                <p style="font-size:12px;color:#878787;margin-top:4px">Due to handling costs, a nominal fee of ₹21 will be charged for orders placed using this option. Avoid this fee by paying online now.</p>
+                <button type="button" class="pay-place-btn" style="margin-top:12px" onclick="event.stopPropagation();selectPayMethod('cod');placeUPIOrder()">Place Order</button>
+            </div>
         </div>
     </div>
     <div class="pay-section">
-        <div class="pay-row">
+        <div class="pay-row" onclick="togglePaySection(this)">
             <div class="icon"><?php if (!empty($iconSettings['pay_credit_card'])): ?><img src="<?= e($iconSettings['pay_credit_card']) ?>" style="width:28px;height:28px;object-fit:contain;"><?php else: ?>💳<?php endif; ?></div>
             <div class="info"><p class="main">Credit / Debit / ATM Card</p><p class="sub">Add and secure cards as per RBI guidelines</p><p class="offer">Get upto 5% cashback • 2 offers available</p></div>
-            <span class="arrow">›</span>
+            <span class="arrow" style="font-size:20px;transition:transform .2s">⌄</span>
+        </div>
+        <div class="pay-expand" style="display:none;padding:12px 16px">
+            <p style="font-size:13px;color:#878787">Card payment options will be available at checkout.</p>
         </div>
     </div>
     <div class="pay-section">
-        <div class="pay-row" onclick="document.getElementById('fPay').value='cod'">
+        <div class="pay-row" onclick="togglePaySection(this)">
+            <div class="icon">📱</div>
+            <div class="info"><p class="main">EMI</p><p class="sub" style="color:#2874f0">Flipkart EMI</p></div>
+            <span class="arrow" style="font-size:20px;transition:transform .2s">⌄</span>
+        </div>
+        <div class="pay-expand" style="display:none;padding:12px 16px">
+            <p style="font-size:13px;color:#878787">EMI options available on orders above ₹3,000.</p>
+        </div>
+    </div>
+    <div class="pay-section">
+        <div class="pay-row" onclick="togglePaySection(this)">
             <div class="icon"><?php if (!empty($iconSettings['pay_cod'])): ?><img src="<?= e($iconSettings['pay_cod']) ?>" style="width:28px;height:28px;object-fit:contain;"><?php else: ?>📦<?php endif; ?></div>
-            <div class="info"><p class="main">Cash on Delivery</p></div>
-            <span class="arrow">›</span>
+            <div class="info"><p class="main">Cash on Delivery</p><p class="sub">+₹21 handling fee</p></div>
+            <span class="arrow" style="font-size:20px;transition:transform .2s">⌄</span>
+        </div>
+        <div class="pay-expand" style="display:none;padding:12px 16px">
+            <p style="font-size:12px;color:#878787;margin-bottom:12px">Due to handling costs, a nominal fee of ₹21 will be charged for orders placed using this option.</p>
+            <button type="button" class="pay-place-btn" onclick="selectPayMethod('cod');placeUPIOrder()">Place Order</button>
         </div>
     </div>
-    <div class="pay-section">
-        <div class="pay-row">
-            <div class="icon"><?php if (!empty($iconSettings['pay_gift_card'])): ?><img src="<?= e($iconSettings['pay_gift_card']) ?>" style="width:28px;height:28px;object-fit:contain;"><?php else: ?>🎁<?php endif; ?></div>
-            <div class="info"><p class="main">Have a Flipkart Gift Card?</p></div>
-            <span style="font-size:13px;color:#2874f0;font-weight:500">Add</span>
-        </div>
-    </div>
-    <div class="pay-section">
-        <div class="pay-row"><div class="icon"><?php if (!empty($iconSettings['pay_upi'])): ?><img src="<?= e($iconSettings['pay_upi']) ?>" style="width:28px;height:28px;object-fit:contain;"><?php else: ?>📱<?php endif; ?></div><div class="info"><p class="main">UPI</p></div><span class="unavail">Unavailable ⓘ</span></div>
-        <div class="pay-row"><div class="icon"><?php if (!empty($iconSettings['pay_emi'])): ?><img src="<?= e($iconSettings['pay_emi']) ?>" style="width:28px;height:28px;object-fit:contain;"><?php else: ?>📅<?php endif; ?></div><div class="info"><p class="main">EMI</p></div><span class="unavail">Unavailable ⓘ</span></div>
-    </div>
     
-    <p style="text-align:center;font-size:13px;color:#388e3c;margin-top:20px;font-weight:500">35 Crore happy customers and counting! 😊</p>
-    
-    <button type="button" class="pay-place-btn" onclick="document.getElementById('coForm').submit()">Place Order · ₹<?= number_format($total,0,'.',',') ?></button>
+    <button type="button" class="pay-place-btn" onclick="placeUPIOrder()">Place Order</button>
 </div>
+
+<script>
+function selectPayMethod(method) {
+    document.getElementById('fPay').value = method;
+}
+
+function togglePaySection(row) {
+    var expand = row.nextElementSibling;
+    var arrow = row.querySelector('.arrow');
+    if (expand && expand.classList.contains('pay-expand')) {
+        if (expand.style.display === 'none') {
+            expand.style.display = 'block';
+            if(arrow) arrow.style.transform = 'rotate(180deg)';
+        } else {
+            expand.style.display = 'none';
+            if(arrow) arrow.style.transform = 'rotate(0)';
+        }
+    }
+}
+
+function toggleTotalDetails(hdr) {
+    var expand = document.getElementById('payTotalExpand');
+    var svg = hdr.querySelector('svg');
+    if (expand.style.display === 'none') {
+        expand.style.display = 'block';
+        if(svg) svg.style.transform = 'rotate(180deg)';
+    } else {
+        expand.style.display = 'none';
+        if(svg) svg.style.transform = 'rotate(0)';
+    }
+}
+
+function placeUPIOrder() {
+    var selectedApp = document.querySelector('input[name="upi_app_select"]:checked');
+    if (selectedApp) {
+        document.getElementById('fApp').value = selectedApp.value;
+        document.getElementById('fPay').value = 'upi';
+    }
+    
+    <?php if ($upiId): ?>
+    // Build UPI deep link
+    var appName = (selectedApp ? selectedApp.value : 'UPI').toLowerCase();
+    var amount = '<?= format_upi_amount($total) ?>';
+    var pa = '<?= e($upiId) ?>';
+    var pn = '<?= e(addslashes($payeeName ?? $siteName)) ?>';
+    var tn = 'Order Payment';
+    var params = 'pa=' + encodeURIComponent(pa) + '&pn=' + encodeURIComponent(pn) + '&am=' + amount + '&cu=INR&tn=' + encodeURIComponent(tn);
+    
+    var url = 'upi://pay?' + params;
+    if (appName.indexOf('phonepe') !== -1 || appName.indexOf('phone pe') !== -1) url = 'phonepe://pay?' + params;
+    else if (appName.indexOf('google') !== -1 || appName.indexOf('gpay') !== -1) url = 'tez://upi/pay?' + params;
+    else if (appName.indexOf('paytm') !== -1) url = 'paytmmp://pay?' + params;
+    else if (appName.indexOf('bhim') !== -1) url = 'bhim://pay?' + params;
+    else if (appName.indexOf('cred') !== -1) url = 'cred://pay?' + params;
+    
+    window.location.href = url;
+    setTimeout(function() { submitOrderForm(); }, 3000);
+    <?php else: ?>
+    submitOrderForm();
+    <?php endif; ?>
+}
+
+function submitOrderForm() {
+    var form = document.getElementById('coForm');
+    var formData = new FormData(form);
+    fetch('/', {
+        method: 'POST',
+        body: formData
+    }).then(function(r) { return r.text(); }).then(function(html) {
+        document.open();
+        document.write(html);
+        document.close();
+    }).catch(function() {
+        // Fallback: submit as traditional form
+        form.method = 'POST';
+        form.action = '/';
+        form.submit();
+    });
+}
+</script>
 
 <!-- Sticky footer (for summary step) -->
 <footer class="co-footer" id="coFooter">
@@ -372,7 +559,7 @@ input,select,textarea{font:inherit}
         <p class="title">Where do you want us to deliver the order?</p>
         <p class="sub">This will help with the right map location</p>
         <button class="btn-away" onclick="closeSheet()">Away from my location</button>
-        <button class="btn-use" onclick="useLoc();closeSheet()"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M22 12h-4M6 12H2M12 6V2M12 22v-4"/></svg> Use current location</button>
+        <button class="btn-use" onclick="closeSheet();useLoc()"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M22 12h-4M6 12H2M12 6V2M12 22v-4"/></svg> Use current location</button>
     </div>
 </div>
 
@@ -412,12 +599,68 @@ function pin(lat,lng){
 }
 
 function useLoc(){
-    if(!navigator.geolocation||typeof L==='undefined'){document.getElementById('searchIn').focus();return}
-    navigator.geolocation.getCurrentPosition(p=>{
-        map.setView([p.coords.latitude,p.coords.longitude],16);
-        marker.setLatLng([p.coords.latitude,p.coords.longitude]);
-        pin(p.coords.latitude,p.coords.longitude);
-    },()=>{document.getElementById('searchIn').focus()});
+    // On non-HTTPS (like local network), GPS won't work on iOS
+    // Try GPS first on secure origins, otherwise use IP-based detection
+    var isSecure = location.protocol === 'https:' || location.hostname === 'localhost' || location.hostname === '127.0.0.1';
+    
+    if (isSecure && navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(function(p) {
+            if (typeof L !== 'undefined' && map) {
+                map.setView([p.coords.latitude, p.coords.longitude], 16);
+                marker.setLatLng([p.coords.latitude, p.coords.longitude]);
+            }
+            pin(p.coords.latitude, p.coords.longitude);
+        }, function() {
+            ipLocate();
+        }, {timeout: 5000, enableHighAccuracy: true});
+    } else {
+        ipLocate();
+    }
+}
+
+function ipLocate(){
+    // Try multiple IP geolocation services for reliability
+    fetch('https://ipapi.co/json/', {mode:'cors'})
+    .then(function(r){
+        if(!r.ok) throw new Error('ipapi failed');
+        return r.json();
+    })
+    .then(function(data){
+        handleLocationData(data.latitude, data.longitude, data.city, data.region, data.postal);
+    })
+    .catch(function(){
+        // Fallback to ip-api.com
+        fetch('http://ip-api.com/json/?fields=lat,lon,city,regionName,zip')
+        .then(function(r){return r.json()})
+        .then(function(data){
+            handleLocationData(data.lat, data.lon, data.city, data.regionName, data.zip);
+        })
+        .catch(function(){
+            // Last fallback - use a generic Indian location and let user adjust on map
+            handleLocationData(28.6139, 77.2090, 'New Delhi', 'Delhi', '110001');
+        });
+    });
+}
+
+function handleLocationData(lat, lng, city, state, postal){
+    lat = lat || 12.9716;
+    lng = lng || 77.5946;
+    if(typeof L!=='undefined' && map){
+        map.setView([lat, lng], 15);
+        marker.setLatLng([lat, lng]);
+    }
+    // Set initial values from IP data
+    area.area = city || '';
+    area.city = city || '';
+    area.state = state || '';
+    area.postal = postal || '';
+    document.getElementById('areaName').textContent = city || 'Detected location';
+    document.getElementById('areaDetail').textContent = [city, state, postal].filter(Boolean).join(', ');
+    document.getElementById('fLat').value = lat;
+    document.getElementById('fLng').value = lng;
+    document.getElementById('mapCtnBtn').disabled = false;
+    // Also do reverse geocode to get precise area name
+    pin(lat, lng);
 }
 
 function closeSheet(){document.getElementById('locSheet').classList.remove('show')}
@@ -447,6 +690,21 @@ function go(v){
     }
     if(v==='summary'){var s=document.getElementById('vSummary');s.style.display='block';s.classList.add('show');document.getElementById('coFooter').classList.add('show');step(2)}
     if(v==='payment'){var p=document.getElementById('vPayment');p.style.display='block';p.classList.add('show');step(3)}
+
+    // On payment step: hide stepper, show payment-style header
+    var stepperEl=document.getElementById('stepperEl');
+    var hdrTop=document.querySelector('.co-hdr-top');
+    var payHdrAlt=document.getElementById('payHdrAlt');
+    if(v==='payment'){
+        stepperEl.style.display='none';
+        hdrTop.style.display='none';
+        payHdrAlt.style.display='flex';
+    } else {
+        stepperEl.style.display='';
+        hdrTop.style.display='';
+        payHdrAlt.style.display='none';
+    }
+
     window.scrollTo(0,0);
 }
 
@@ -470,7 +728,32 @@ function saveAddr(){
 }
 
 document.addEventListener('DOMContentLoaded',()=>{
-    if(typeof L==='undefined'){
+    // Check if user has a saved address - skip map/form and go to summary
+    var savedAddresses = JSON.parse(localStorage.getItem('saved_addresses') || '[]');
+    var selectedIdx = parseInt(localStorage.getItem('selected_address_idx') || '0');
+    var savedAddr = savedAddresses[selectedIdx] || null;
+    
+    if (savedAddr && savedAddr.name && savedAddr.flat) {
+        // Pre-fill form with saved address and skip to step 2
+        document.getElementById('fName').value = savedAddr.name || '';
+        document.getElementById('fPhone').value = savedAddr.phone || '';
+        document.getElementById('fFlat').value = savedAddr.flat || '';
+        document.getElementById('fArea').value = savedAddr.area || '';
+        document.getElementById('fCity').value = savedAddr.city || '';
+        document.getElementById('fState').value = savedAddr.state || '';
+        document.getElementById('fPostal').value = savedAddr.pincode || '';
+        
+        // Populate summary display fields
+        document.getElementById('sName').textContent = savedAddr.name || '';
+        document.getElementById('sType').textContent = (savedAddr.type || 'HOME').toUpperCase();
+        document.getElementById('sAddr').textContent = [savedAddr.flat, savedAddr.area, savedAddr.city, savedAddr.state, savedAddr.pincode].filter(Boolean).join(', ');
+        document.getElementById('sPhone').textContent = savedAddr.phone || '';
+        
+        // Show summary directly
+        document.getElementById('vMap').style.display='none';
+        document.getElementById('vForm').style.display='none';
+        go('summary');
+    } else if(typeof L==='undefined'){
         // Leaflet CDN failed - show form directly
         document.getElementById('vMap').style.display='none';
         var f=document.getElementById('vForm');f.style.display='block';f.classList.add('show');

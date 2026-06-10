@@ -9,6 +9,13 @@ $isEdit = false;
 
 if ($catId) {
     $data = supabase_query('categories', ['id' => 'eq.' . $catId, 'select' => '*']);
+    if (empty($data) || isset($data['error'])) {
+        // Fallback: try without admin token
+        $oldToken = $_SESSION['admin_token'] ?? null;
+        unset($_SESSION['admin_token']);
+        $data = supabase_query('categories', ['id' => 'eq.' . $catId, 'select' => '*']);
+        if ($oldToken) $_SESSION['admin_token'] = $oldToken;
+    }
     $category = $data[0] ?? null;
     $isEdit = !!$category;
 }
@@ -47,7 +54,7 @@ require __DIR__ . '/layout.php';
         </div>
         <div class="form-group full">
             <label>Or Upload Category Image</label>
-            <input type="file" name="category_image_file" accept="image/*" class="form-input">
+            <input type="file" name="image_file" accept="image/*" class="form-input">
             <p class="form-hint">If a file is uploaded, it will be used instead of the URL above.</p>
         </div>
         <div class="form-group">

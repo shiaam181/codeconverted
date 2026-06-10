@@ -61,14 +61,19 @@ $headerIcons = get_icon_settings();
         </div>
 
         <!-- Location bar -->
-        <div class="location-bar">
+        <div class="location-bar" id="locationBar" onclick="window.location.href='/select-address'" style="cursor:pointer">
             <div class="location-left">
                 <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg>
-                <span class="location-text">Location not set</span>
-                <span class="location-link">Select delivery location ›</span>
+                <span class="location-text" id="locText">Location not set</span>
+                <span class="location-link" id="locLink">Select delivery location ›</span>
             </div>
-            <div class="supercoin">
+            <div class="supercoin" onclick="event.stopPropagation()">
+                <?php $coinIcon = $headerIcons['ui_coin'] ?? ''; ?>
+                <?php if ($coinIcon): ?>
+                <img src="<?= e($coinIcon) ?>" alt="" class="coin-img">
+                <?php else: ?>
                 <span class="coin-icon">₹</span>
+                <?php endif; ?>
                 0
             </div>
         </div>
@@ -83,3 +88,18 @@ $headerIcons = get_icon_settings();
         </a>
     </div>
 </header>
+
+<script>
+(function(){
+    var saved = localStorage.getItem('delivery_location');
+    if (saved) {
+        var loc = JSON.parse(saved);
+        var text = document.getElementById('locText');
+        var link = document.getElementById('locLink');
+        if (text && loc.area) {
+            text.textContent = loc.area;
+            link.textContent = (loc.city ? loc.city + ', ' : '') + (loc.pincode || '') + ' ›';
+        }
+    }
+})();
+</script>

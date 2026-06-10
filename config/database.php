@@ -34,6 +34,16 @@ define('SUPABASE_KEY', getenv('SUPABASE_KEY') ?: getenv('SUPABASE_PUBLISHABLE_KE
  */
 function get_auth_token(): string {
     if (!empty($_SESSION['admin_token'])) {
+        // Check if token looks expired (JWT expiry check)
+        $parts = explode('.', $_SESSION['admin_token']);
+        if (count($parts) === 3) {
+            $payload = json_decode(base64_decode(str_pad(strtr($parts[1], '-_', '+/'), strlen($parts[1]) % 4, '=', STR_PAD_RIGHT)), true);
+            if ($payload && isset($payload['exp']) && $payload['exp'] < time()) {
+                // Token expired, clear it
+                unset($_SESSION['admin_token']);
+                return SUPABASE_KEY;
+            }
+        }
         return $_SESSION['admin_token'];
     }
     return SUPABASE_KEY;

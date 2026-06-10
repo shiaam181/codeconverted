@@ -12,6 +12,17 @@ function get_categories(): array {
         'order' => 'sort_order.asc',
         'select' => '*',
     ]);
+    if (empty($data) || isset($data['error'])) {
+        // Fallback: try without admin token
+        $oldToken = $_SESSION['admin_token'] ?? null;
+        unset($_SESSION['admin_token']);
+        $data = supabase_query('categories', [
+            'is_active' => 'eq.true',
+            'order' => 'sort_order.asc',
+            'select' => '*',
+        ]);
+        if ($oldToken) $_SESSION['admin_token'] = $oldToken;
+    }
     return isset($data['error']) ? [] : $data;
 }
 
@@ -82,6 +93,15 @@ function get_products(array $options = []): array {
     }
     
     $data = supabase_query('products', $params);
+    
+    // Fallback if admin token is expired
+    if (empty($data) || isset($data['error'])) {
+        $oldToken = $_SESSION['admin_token'] ?? null;
+        unset($_SESSION['admin_token']);
+        $data = supabase_query('products', $params);
+        if ($oldToken) $_SESSION['admin_token'] = $oldToken;
+    }
+    
     return isset($data['error']) ? [] : $data;
 }
 
@@ -113,7 +133,7 @@ function search_products(string $query, ?string $tenantId = null, int $limit = 4
         'is_active' => 'eq.true',
         'select' => '*,product_images(url,sort_order)',
         'limit' => (string) $limit,
-        'or' => "(title.ilike.%{$query}%,brand.ilike.%{$query}%,description.ilike.%{$query}%)",
+        'or' => "(title.ilike.*{$query}*,brand.ilike.*{$query}*,description.ilike.*{$query}*)",
     ];
     
     if ($tenantId) {
@@ -123,6 +143,15 @@ function search_products(string $query, ?string $tenantId = null, int $limit = 4
     }
     
     $data = supabase_query('products', $params);
+    
+    // Fallback if admin token is expired
+    if (empty($data) || isset($data['error'])) {
+        $oldToken = $_SESSION['admin_token'] ?? null;
+        unset($_SESSION['admin_token']);
+        $data = supabase_query('products', $params);
+        if ($oldToken) $_SESSION['admin_token'] = $oldToken;
+    }
+    
     return isset($data['error']) ? [] : $data;
 }
 
@@ -289,7 +318,7 @@ function get_app_setting(string $key): ?string {
  */
 function get_icon_settings(): array {
     $data = supabase_query('app_settings', [
-        'key' => 'like.icon_%',
+        'key' => 'like.icon_*',
         'select' => 'key,value',
     ]);
     
@@ -301,7 +330,9 @@ function get_icon_settings(): array {
     foreach ($data as $row) {
         // Strip the 'icon_' prefix for cleaner keys
         $key = str_replace('icon_', '', $row['key']);
-        $icons[$key] = $row['value'];
+        if (!empty($row['value'])) {
+            $icons[$key] = $row['value'];
+        }
     }
     return $icons;
 }

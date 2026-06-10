@@ -65,6 +65,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 $theme = get_theme();
 $upiApps = get_upi_methods();
 
+// Auto-seed default UPI apps if none exist
+if (empty($upiApps)) {
+    $defaults = [
+        ['name' => 'Google Pay', 'logo_url' => 'https://upload.wikimedia.org/wikipedia/commons/thumb/f/f2/Google_Pay_Logo.svg/512px-Google_Pay_Logo.svg.png', 'scheme' => 'upi', 'is_active' => true, 'sort_order' => 1],
+        ['name' => 'PhonePe', 'logo_url' => 'https://upload.wikimedia.org/wikipedia/commons/thumb/7/71/PhonePe_Logo.svg/1024px-PhonePe_Logo.svg.png', 'scheme' => 'upi', 'is_active' => true, 'sort_order' => 2],
+        ['name' => 'Paytm', 'logo_url' => 'https://upload.wikimedia.org/wikipedia/commons/thumb/2/24/Paytm_Logo_%28standalone%29.svg/1024px-Paytm_Logo_%28standalone%29.svg.png', 'scheme' => 'upi', 'is_active' => true, 'sort_order' => 3],
+        ['name' => 'BHIM', 'logo_url' => 'https://upload.wikimedia.org/wikipedia/commons/thumb/e/e1/UPI-Logo-vector.svg/1024px-UPI-Logo-vector.svg.png', 'scheme' => 'upi', 'is_active' => true, 'sort_order' => 4],
+        ['name' => 'CRED', 'logo_url' => 'https://upload.wikimedia.org/wikipedia/commons/thumb/9/98/Cred_Logo.svg/512px-Cred_Logo.svg.png', 'scheme' => 'upi', 'is_active' => true, 'sort_order' => 5],
+    ];
+    foreach ($defaults as $app) {
+        supabase_query('upi_methods', [], 'POST', $app);
+    }
+    $upiApps = get_upi_methods();
+}
+
 require __DIR__ . '/layout.php';
 ?>
 

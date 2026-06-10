@@ -14,6 +14,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             'pay_recommended', 'pay_credit_card', 'pay_cod', 'pay_gift_card', 'pay_upi', 'pay_emi',
             // Header tab icons
             'tab_flipkart', 'tab_minutes', 'tab_travel',
+            // UI icons
+            'ui_coin', 'ui_lock',
         ];
         
         $saved = 0;
@@ -22,10 +24,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             if ($value !== '') {
                 upsert_app_setting('icon_' . $key, $value);
                 $saved++;
-            } else {
-                // Clear the setting if empty
-                upsert_app_setting('icon_' . $key, '');
             }
+            // Don't clear existing settings if field is left empty
         }
         
         flash('success', "Icon settings saved! ({$saved} icons configured)");
@@ -116,6 +116,44 @@ require __DIR__ . '/layout.php';
                 'tab_travel' => ['label' => 'Travel Tab', 'emoji' => '✈️', 'desc' => 'Icon for the "Travel" tab'],
             ];
             foreach ($tabIcons as $key => $info):
+                $currentUrl = $icons[$key] ?? '';
+            ?>
+            <div class="icon-item">
+                <div class="icon-preview-wrap">
+                    <?php if ($currentUrl): ?>
+                    <img src="<?= e($currentUrl) ?>" class="icon-preview-img" id="preview_<?= $key ?>">
+                    <?php else: ?>
+                    <span class="icon-preview-emoji" id="preview_<?= $key ?>"><?= $info['emoji'] ?></span>
+                    <?php endif; ?>
+                </div>
+                <div class="icon-details">
+                    <p class="icon-label"><?= e($info['label']) ?></p>
+                    <p class="icon-desc"><?= e($info['desc']) ?></p>
+                    <div class="icon-input-row">
+                        <input type="text" name="<?= $key ?>" value="<?= e($currentUrl) ?>" placeholder="Paste image URL or select from media" class="icon-url-input" id="input_<?= $key ?>" oninput="updatePreview('<?= $key ?>')">
+                        <button type="button" class="btn-pick" onclick="openPicker('<?= $key ?>')">Browse</button>
+                        <?php if ($currentUrl): ?>
+                        <button type="button" class="btn-clear" onclick="clearIcon('<?= $key ?>')">✕</button>
+                        <?php endif; ?>
+                    </div>
+                </div>
+            </div>
+            <?php endforeach; ?>
+        </div>
+    </div>
+
+    <!-- UI Icons -->
+    <div class="admin-card" style="margin-bottom: 24px;">
+        <h3 style="margin-bottom: 4px;">UI Icons</h3>
+        <p class="text-muted text-sm" style="margin-bottom: 20px;">Custom icons used across the store (header coin, checkout lock, etc.).</p>
+        
+        <div class="icon-grid">
+            <?php
+            $uiIcons = [
+                'ui_coin' => ['label' => 'SuperCoin', 'emoji' => '₹', 'desc' => 'Coin icon shown in the header (next to balance)'],
+                'ui_lock' => ['label' => 'Secure Lock', 'emoji' => '🔒', 'desc' => 'Lock icon shown on checkout page "100% Secure"'],
+            ];
+            foreach ($uiIcons as $key => $info):
                 $currentUrl = $icons[$key] ?? '';
             ?>
             <div class="icon-item">
