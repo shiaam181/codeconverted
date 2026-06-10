@@ -204,6 +204,20 @@ input,select,textarea{font:inherit}
 
 /* Sticky footer */
 .co-footer{position:fixed;bottom:0;left:0;right:0;z-index:30;background:#fff;border-top:1px solid #eee;box-shadow:0 -2px 10px rgba(0,0,0,.08);padding:12px 16px;display:none;align-items:center;justify-content:space-between}
+
+/* Saved addresses */
+.sa-item{display:flex;gap:12px;padding:14px 16px;border-bottom:1px solid #f5f5f5;cursor:pointer;transition:background .1s}
+.sa-item:last-child{border-bottom:none}
+.sa-item.selected{background:#e8f4ff}
+.sa-radio{padding-top:3px}
+.sa-dot{width:20px;height:20px;border-radius:50%;border:2px solid #c2c2c2;position:relative}
+.sa-dot.active{border-color:#2874f0}
+.sa-dot.active::after{content:'';position:absolute;top:3px;left:3px;width:10px;height:10px;border-radius:50%;background:#2874f0}
+.sa-info{flex:1;min-width:0}
+.sa-name{font-size:14px;font-weight:600;display:flex;align-items:center;gap:8px}
+.sa-badge{font-size:10px;background:#f0f0f0;color:#555;padding:2px 6px;border-radius:3px;font-weight:600}
+.sa-detail{font-size:12px;color:#555;margin-top:3px;line-height:1.4}
+.sa-phone{font-size:12px;color:#878787;margin-top:3px}
 .co-footer.show{display:flex}
 .co-footer .price-col .mrp{font-size:12px;color:#878787;text-decoration:line-through}
 .co-footer .price-col .total{font-size:20px;font-weight:800}
@@ -346,6 +360,18 @@ input,select,textarea{font:inherit}
         <div class="total"><span>Total Amount</span><span>₹<?= number_format($total,0,'.',',') ?></span></div>
         <?php if($savings>0): ?><div class="save-bar">You will save ₹<?= number_format($savings,0,'.',',') ?> on this order</div><?php endif; ?>
     </div>
+</div>
+
+<!-- ═══ SAVED ADDRESSES VIEW ═══ -->
+<div id="vSavedAddr" style="display:none;padding:10px 12px;padding-bottom:100px">
+    <div style="background:#fff;border-radius:8px;padding:16px;margin-bottom:8px">
+        <h3 style="font-size:15px;font-weight:600;margin-bottom:4px">Select delivery address</h3>
+        <p style="font-size:12px;color:#878787">Choose from your saved addresses</p>
+    </div>
+    <div id="savedAddrList" style="background:#fff;border-radius:8px;overflow:hidden;margin-bottom:8px"></div>
+    <button type="button" onclick="addNewAddress()" style="width:100%;padding:14px;background:#fff;border:1.5px dashed #2874f0;border-radius:8px;font-size:14px;font-weight:600;color:#2874f0;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px">
+        <span style="font-size:18px">+</span> Add new address
+    </button>
 </div>
 
 <!-- ═══ PAYMENT VIEW ═══ -->
@@ -678,7 +704,7 @@ function doSearch(q){
 }
 
 function go(v){
-    ['vMap','vForm','vSummary','vPayment'].forEach(id=>{var el=document.getElementById(id);if(el){el.style.display='none';el.classList.remove('show')}});
+    ['vMap','vForm','vSummary','vPayment','vSavedAddr'].forEach(id=>{var el=document.getElementById(id);if(el){el.style.display='none';el.classList.remove('show')}});
     document.getElementById('coFooter').classList.remove('show');
 
     if(v==='map'){document.getElementById('vMap').style.display='';step(1);setTimeout(()=>{if(map)map.invalidateSize()},100)}
@@ -720,6 +746,14 @@ function setType(btn,t){document.querySelectorAll('.type-btn').forEach(b=>b.clas
 function saveAddr(){
     var n=document.getElementById('fName').value,p=document.getElementById('fPhone').value,f=document.getElementById('fFlat').value;
     if(!n||!p||!f){alert('Fill name, phone, and flat/house');return}
+    
+    // Save to localStorage
+    var addresses = JSON.parse(localStorage.getItem('saved_addresses') || '[]');
+    var newAddr = {name:n, phone:p, flat:f, area:area.area||'', city:area.city||'', state:area.state||'', pincode:area.postal||'', type:document.getElementById('fType').value};
+    addresses.push(newAddr);
+    localStorage.setItem('saved_addresses', JSON.stringify(addresses));
+    localStorage.setItem('selected_address_idx', addresses.length - 1);
+    
     document.getElementById('sName').textContent=n;
     document.getElementById('sType').textContent=document.getElementById('fType').value.toUpperCase();
     document.getElementById('sAddr').textContent=[f,area.area,area.city,area.state,area.postal].filter(Boolean).join(', ');
@@ -728,33 +762,13 @@ function saveAddr(){
 }
 
 document.addEventListener('DOMContentLoaded',()=>{
-    // Check if user has a saved address - skip map/form and go to summary
     var savedAddresses = JSON.parse(localStorage.getItem('saved_addresses') || '[]');
     var selectedIdx = parseInt(localStorage.getItem('selected_address_idx') || '0');
-    var savedAddr = savedAddresses[selectedIdx] || null;
     
-    if (savedAddr && savedAddr.name && savedAddr.flat) {
-        // Pre-fill form with saved address and skip to step 2
-        document.getElementById('fName').value = savedAddr.name || '';
-        document.getElementById('fPhone').value = savedAddr.phone || '';
-        document.getElementById('fFlat').value = savedAddr.flat || '';
-        document.getElementById('fArea').value = savedAddr.area || '';
-        document.getElementById('fCity').value = savedAddr.city || '';
-        document.getElementById('fState').value = savedAddr.state || '';
-        document.getElementById('fPostal').value = savedAddr.pincode || '';
-        
-        // Populate summary display fields
-        document.getElementById('sName').textContent = savedAddr.name || '';
-        document.getElementById('sType').textContent = (savedAddr.type || 'HOME').toUpperCase();
-        document.getElementById('sAddr').textContent = [savedAddr.flat, savedAddr.area, savedAddr.city, savedAddr.state, savedAddr.pincode].filter(Boolean).join(', ');
-        document.getElementById('sPhone').textContent = savedAddr.phone || '';
-        
-        // Show summary directly
-        document.getElementById('vMap').style.display='none';
-        document.getElementById('vForm').style.display='none';
-        go('summary');
+    if (savedAddresses.length > 0) {
+        // Show saved addresses picker
+        showSavedAddresses(savedAddresses, selectedIdx);
     } else if(typeof L==='undefined'){
-        // Leaflet CDN failed - show form directly
         document.getElementById('vMap').style.display='none';
         var f=document.getElementById('vForm');f.style.display='block';f.classList.add('show');
         document.getElementById('roArea').textContent='Enter address manually';
@@ -763,6 +777,72 @@ document.addEventListener('DOMContentLoaded',()=>{
         go('map');initMap();
     }
 });
+
+function showSavedAddresses(addresses, selectedIdx) {
+    // Hide map and form views
+    document.getElementById('vMap').style.display='none';
+    document.getElementById('vForm').style.display='none';
+    document.getElementById('vSummary').style.display='none';
+    document.getElementById('vPayment').style.display='none';
+    
+    // Show saved addresses view
+    var el = document.getElementById('vSavedAddr');
+    el.style.display='block';
+    step(1);
+    
+    var html = '';
+    addresses.forEach(function(a, i) {
+        var detail = [a.flat, a.area, a.city, a.state, a.pincode].filter(Boolean).join(', ');
+        var isSelected = (i === selectedIdx);
+        html += '<div class="sa-item' + (isSelected ? ' selected' : '') + '" onclick="pickSavedAddress(' + i + ')">';
+        html += '<div class="sa-radio"><div class="sa-dot' + (isSelected ? ' active' : '') + '"></div></div>';
+        html += '<div class="sa-info">';
+        html += '<p class="sa-name">' + (a.name || 'Address') + ' <span class="sa-badge">' + (a.type || 'HOME').toUpperCase() + '</span></p>';
+        html += '<p class="sa-detail">' + detail + '</p>';
+        if (a.phone) html += '<p class="sa-phone">' + a.phone + '</p>';
+        html += '</div></div>';
+    });
+    
+    document.getElementById('savedAddrList').innerHTML = html;
+}
+
+function pickSavedAddress(idx) {
+    var addresses = JSON.parse(localStorage.getItem('saved_addresses') || '[]');
+    var a = addresses[idx];
+    if (!a) return;
+    
+    localStorage.setItem('selected_address_idx', idx);
+    
+    // Fill form hidden fields
+    document.getElementById('fName').value = a.name || '';
+    document.getElementById('fPhone').value = a.phone || '';
+    document.getElementById('fFlat').value = a.flat || '';
+    document.getElementById('fArea').value = a.area || '';
+    document.getElementById('fCity').value = a.city || '';
+    document.getElementById('fState').value = a.state || '';
+    document.getElementById('fPostal').value = a.pincode || '';
+    
+    // Fill summary
+    document.getElementById('sName').textContent = a.name || '';
+    document.getElementById('sType').textContent = (a.type || 'HOME').toUpperCase();
+    document.getElementById('sAddr').textContent = [a.flat, a.area, a.city, a.state, a.pincode].filter(Boolean).join(', ');
+    document.getElementById('sPhone').textContent = a.phone || '';
+    
+    // Hide saved addresses, show summary
+    document.getElementById('vSavedAddr').style.display='none';
+    go('summary');
+}
+
+function addNewAddress() {
+    document.getElementById('vSavedAddr').style.display='none';
+    if(typeof L!=='undefined') {
+        go('map');initMap();
+    } else {
+        var f=document.getElementById('vForm');
+        document.getElementById('vMap').style.display='none';
+        f.style.display='block';f.classList.add('show');
+    }
+}
 </script>
 </body>
 </html>

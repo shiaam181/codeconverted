@@ -88,7 +88,19 @@ function cart_totals(): array {
     }
     
     $discount = max(0, $mrpTotal - $subtotal);
-    $shipping = ($subtotal > 0 && $subtotal < FREE_DELIVERY_THRESHOLD) ? DELIVERY_CHARGE : 0;
+    
+    // Check delivery charges: tenant setting overrides global
+    $deliveryEnabled = true;
+    $tenant = $_SESSION['current_tenant'] ?? null;
+    if ($tenant) {
+        // Tenant controls their own delivery charges
+        $deliveryEnabled = ($tenant['delivery_charges_enabled'] ?? false) ? true : false;
+    } else {
+        // Global setting from app_settings
+        $deliveryEnabled = get_app_setting('delivery_charges_enabled') === 'true';
+    }
+    
+    $shipping = ($deliveryEnabled && $subtotal > 0 && $subtotal < FREE_DELIVERY_THRESHOLD) ? DELIVERY_CHARGE : 0;
     $total = $subtotal + $shipping;
     $savings = max(0, $mrpTotal - $total);
     

@@ -30,6 +30,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['tenant_action'] ?? '') ===
     redirect("/t/{$tenantSlug}/admin");
 }
 
+// Handle toggle delivery charges
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['tenant_action'] ?? '') === 'toggle_delivery') {
+    $currentVal = ($tenant['delivery_charges_enabled'] ?? false) ? true : false;
+    supabase_query('tenants', ['id' => 'eq.' . $tenantId], 'PATCH', [
+        'delivery_charges_enabled' => !$currentVal,
+    ]);
+    flash('success', !$currentVal ? 'Delivery charges enabled' : 'Delivery charges disabled');
+    redirect("/t/{$tenantSlug}/admin");
+}
+
 // Get fresh tenant data
 $tenant = get_tenant_by_slug($tenantSlug);
 $_SESSION['current_tenant'] = $tenant;
@@ -141,6 +151,22 @@ body{font-family:'Inter',sans-serif;background:#f8fafc;min-height:100vh}
                 <input type="hidden" name="tenant_action" value="toggle_defaults">
                 <button type="submit" class="toggle-btn <?= ($tenant['show_default_products'] ?? true) ? 'on' : '' ?>">
                     <?= ($tenant['show_default_products'] ?? true) ? 'ON' : 'OFF' ?>
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Delivery Charges Toggle -->
+    <div class="info-card">
+        <div class="toggle-row">
+            <div>
+                <h3>Delivery charges</h3>
+                <p>When on, ₹40 delivery is added to carts under ₹500. When off, customers pay only the product price.</p>
+            </div>
+            <form method="POST" style="display:inline">
+                <input type="hidden" name="tenant_action" value="toggle_delivery">
+                <button type="submit" class="toggle-btn <?= ($tenant['delivery_charges_enabled'] ?? false) ? 'on' : '' ?>">
+                    <?= ($tenant['delivery_charges_enabled'] ?? false) ? 'ON' : 'OFF' ?>
                 </button>
             </form>
         </div>
