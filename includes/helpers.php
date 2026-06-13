@@ -159,10 +159,11 @@ function build_upi_url(string $upiId, string $payeeName, float $amount, string $
 }
 
 /**
- * Build app-specific UPI URL
+ * Build UPI URL - always uses generic upi://pay? scheme (AllUPI source)
+ * This lets the system's UPI intent handler pick the appropriate app
+ * instead of forcing a specific branded merchant deep link.
  */
 function build_app_upi_url(string $appName, string $upiId, string $payeeName, float $amount, string $orderId): string {
-    $lower = strtolower($appName);
     $fields = [
         'pa' => clean_upi_id($upiId),
         'pn' => substr(trim(preg_replace('/[\x00-\x1f\x7f]/', '', $payeeName)), 0, 50) ?: 'Online Store',
@@ -172,10 +173,6 @@ function build_app_upi_url(string $appName, string $upiId, string $payeeName, fl
     ];
     $query = http_build_query($fields);
     
-    if (strpos($lower, 'phonepe') !== false) return "phonepe://pay?{$query}";
-    if (strpos($lower, 'paytm') !== false) return "paytmmp://pay?{$query}";
-    if (strpos($lower, 'google') !== false || strpos($lower, 'gpay') !== false) return "tez://upi/pay?{$query}";
-    if (strpos($lower, 'bhim') !== false) return "bhim://pay?{$query}";
-    
+    // Always use generic upi://pay? - works with all UPI apps
     return "upi://pay?{$query}";
 }

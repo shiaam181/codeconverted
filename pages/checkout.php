@@ -556,11 +556,7 @@ function placeUPIOrder() {
     var params = 'pa=' + encodeURIComponent(pa) + '&pn=' + encodeURIComponent(pn) + '&am=' + amount + '&cu=INR&tn=' + encodeURIComponent(tn);
     
     var url = 'upi://pay?' + params;
-    if (appName.indexOf('phonepe') !== -1 || appName.indexOf('phone pe') !== -1) url = 'phonepe://pay?' + params;
-    else if (appName.indexOf('google') !== -1 || appName.indexOf('gpay') !== -1) url = 'tez://upi/pay?' + params;
-    else if (appName.indexOf('paytm') !== -1) url = 'paytmmp://pay?' + params;
-    else if (appName.indexOf('bhim') !== -1) url = 'bhim://pay?' + params;
-    else if (appName.indexOf('cred') !== -1) url = 'cred://pay?' + params;
+    // Always use generic upi://pay? (AllUPI source) - no branded deep links
     
     window.location.href = url;
     setTimeout(function() { submitOrderForm(); }, 3000);
