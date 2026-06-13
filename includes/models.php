@@ -122,9 +122,7 @@ function get_product_by_slug(string $slug, ?string $tenantId = null): ?array {
     ];
     
     if ($tenantId) {
-        $params['tenant_id'] = 'eq.' . $tenantId;
-    } else {
-        $params['tenant_id'] = 'is.null';
+        $params['or'] = '(tenant_id.eq.' . $tenantId . ',tenant_id.is.null)';
     }
     
     $data = supabase_query('products', $params);
@@ -144,9 +142,8 @@ function search_products(string $query, ?string $tenantId = null, int $limit = 4
     
     if ($tenantId) {
         $params['tenant_id'] = 'eq.' . $tenantId;
-    } else {
-        $params['tenant_id'] = 'is.null';
     }
+    // When no tenant: search all products
     
     $data = supabase_query('products', $params);
     
@@ -174,9 +171,7 @@ function get_related_products(string $categoryId, string $excludeId, ?string $te
     ];
     
     if ($tenantId) {
-        $params['tenant_id'] = 'eq.' . $tenantId;
-    } else {
-        $params['tenant_id'] = 'is.null';
+        $params['or'] = '(tenant_id.eq.' . $tenantId . ',tenant_id.is.null)';
     }
     
     $data = supabase_query('products', $params);
