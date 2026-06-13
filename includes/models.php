@@ -85,9 +85,8 @@ function get_products(array $options = []): array {
             // Show both tenant products AND default (null tenant) products
             $params['or'] = '(tenant_id.eq.' . $tenantId . ',tenant_id.is.null)';
         }
-    } else {
-        $params['tenant_id'] = 'is.null';
     }
+    // When no tenant: show all products (no tenant_id filter)
     
     // Featured filter
     if (!empty($options['featured'])) {
